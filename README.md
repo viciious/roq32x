@@ -1,6 +1,8 @@
 # roq32x
 RoQ FVM playback demo for the Sega 32X.
 
+The demo utilizes the two SH-2 CPUs to improve performance. The master CPU is used for decoding RoQ chunks, the other one - for blitting and conversion from YUV420 colorspace to R5G5B5 the 32x framebuffer uses. If the second CPU is lagging behind, the master CPU will then partly offload the remaining blitting work for the duration of the frame.
+
 http://wiki.multimedia.cx/index.php?title=RoQ
 
 
