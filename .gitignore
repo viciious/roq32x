@@ -1,0 +1,10 @@
+*.mp4
+*.bin
+*.32x
+*.elf
+*.o
+!roq/*.roq
+*.roq
+*.m4a
+*.map
+*.wav
