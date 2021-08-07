@@ -6,6 +6,7 @@ The demo utilizes the two SH-2 CPUs to improve performance. The master CPU is us
 The optimal compression settings are 192x144 @ 15fps or 256x144 @ 12fps, or 256x192 @ 12 fps. Both stereo and mono audio is supported, but mono is recommended due to space and bandwidth concerns. Videos with width less or equal to 160 are stretched both horizontally and vertically, and play at 30/25 fps.
 
 Pressing A enables low quality mode, which halves the final picture resolution.
+
 Pressing B toggles runtime debug information.
 
 http://wiki.multimedia.cx/index.php?title=RoQ
