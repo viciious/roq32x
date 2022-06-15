@@ -5,8 +5,8 @@
 
 marsrb_t soundbuf;
 
-void slave_dma1_handler(void) SND_ATTR_SDRAM;
-void slave_dma_kickstart(void) SND_ATTR_SDRAM;
+void sec_dma1_handler(void) SND_ATTR_SDRAM;
+void sec_dma_kickstart(void) SND_ATTR_SDRAM;
 
 uint16_t* snddma_get_buf(int channels, int num_samples) {
     uint16_t* p;
@@ -42,7 +42,7 @@ unsigned snddma_length(void)
     return Mars_RB_Len(&soundbuf);
 }
 
-void slave_dma_kickstart(void)
+void sec_dma_kickstart(void)
 {
     static short kickstart_samples[16] __attribute__((aligned(16))) = {
         SAMPLE_CENTER, SAMPLE_CENTER, SAMPLE_CENTER, SAMPLE_CENTER, SAMPLE_CENTER, SAMPLE_CENTER, SAMPLE_CENTER, SAMPLE_CENTER,
@@ -55,7 +55,7 @@ void slave_dma_kickstart(void)
     SH2_DMA_CHCR1 = 0x14e5; // dest fixed, src incr, size word, ext req, dack mem to dev, dack hi, dack edge, dreq rising edge, cycle-steal, dual addr, intr enabled, clear TE, dma enabled
 }
 
-void slave_dma1_handler(void)
+void sec_dma1_handler(void)
 {
     Mars_RB_CommitRead(&soundbuf);
 
@@ -64,7 +64,7 @@ void slave_dma1_handler(void)
 
     if (Mars_RB_Len(&soundbuf) == 0) {
         // sound buffer UNDERRUN
-        slave_dma_kickstart();
+        sec_dma_kickstart();
         return;
     }
 
@@ -89,7 +89,7 @@ void slave_dma1_handler(void)
     }
 }
 
-void snddma_slave_init(int sample_rate)
+void snddma_sec_init(int sample_rate)
 {
     uint16_t sample, ix;
 
@@ -108,8 +108,8 @@ void snddma_slave_init(int sample_rate)
     SH2_DMA_DRCR1 = 0;
     SH2_DMA_DMAOR = 1; // enable DMA
 
-    SH2_DMA_VCR1 = 72; // set exception vector for DMA channel 1
-    SH2_INT_IPRA = (SH2_INT_IPRA & 0xF0FF) | 0x0F00; // set DMA INT to priority 15
+    SH2_DMA_VCR1 = 66; 	// set exception vector for DMA channel 1
+    SH2_INT_IPRA = (SH2_INT_IPRA & 0xF0FF) | 0x0400; // set DMA INT to priority 4
 
     // init the sound hardware
     MARS_PWM_MONO = 1;
@@ -136,7 +136,7 @@ void snddma_slave_init(int sample_rate)
 
     SetSH2SR(2);
 
-    slave_dma_kickstart();
+    sec_dma_kickstart();
 }
 
 void snddma_init(int sample_rate)

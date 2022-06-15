@@ -25,12 +25,7 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
     unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height, unsigned buf_incr, const short breakval)
 {
     unsigned x, y;
-    unsigned short* buf[2] = { pbuf, NULL };
-    unsigned char* pa[2] = { ppa, NULL };
     unsigned char* pb = ppb;
-
-    pa[1] = pa[0] + width;
-    buf[1] = buf[0] + 320;
 
     for (y = start_y; y < height; y += 2)
     {
@@ -51,11 +46,11 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
             int u352_ = u0344C_ * u;
             int uv_ = u352_ + v731_ - YUV_NUDGE2;
 
+            unsigned short* d = pbuf;
+            unsigned char* py = ppa;
+
             for (i = 0; i < 2; i++)
             {
-                unsigned char* py = pa[i];
-                unsigned short* d = buf[i];
-
                 for (j = 0; j < 2; j++)
                 {
                     unsigned t;
@@ -72,20 +67,18 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
 
                     d[j] = YUVRGB555(r, g, b);
                 }
+
+                d += 320;
+                py += width;
             }
 
-            pa[0] += 2;
-            pa[1] += 2;
-            buf[0] += 2;
-            buf[1] += 2;
+            ppa += 2;
+            pbuf += 2;
             pb += 2;
         }
 
-        pa[0] += width;
-        pa[1] += width;
-
-        buf[0] += buf_incr;
-        buf[1] += buf_incr;
+        ppa += width;
+        pbuf += buf_incr;
     }
 
     return y + 2;
@@ -95,12 +88,10 @@ unsigned blit_roqframe_stretch_x2(unsigned start_y, unsigned short* pbuf,
     unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height, unsigned buf_incr, const short breakval)
 {
     unsigned x, y;
-    unsigned short* buf[2] = { pbuf, NULL };
     unsigned char* pa[2] = { ppa, NULL };
     unsigned char* pb = ppb;
 
     pa[1] = pa[0] + width;
-    buf[1] = buf[0] + 320;
 
     for (y = start_y; y < height; y += 2)
     {
@@ -121,10 +112,11 @@ unsigned blit_roqframe_stretch_x2(unsigned start_y, unsigned short* pbuf,
             unsigned u1815_ = u1772C_ * u;
             unsigned uv_ = u352_ + v731_ - YUV_NUDGE2;
 
+            unsigned short* d = pbuf;
+
             for (i = 0; i < 2; i++)
             {
                 unsigned char* py = pa[i];
-                unsigned short* d = buf[i];
 
                 for (j = 0, k = 0; j < 2; j++, k += 2)
                 {
@@ -145,20 +137,19 @@ unsigned blit_roqframe_stretch_x2(unsigned start_y, unsigned short* pbuf,
                     d[k + 0] = val;
                     d[k + 1] = val;
                 }
+
+                d += 320;
             }
 
             pa[0] += 2;
             pa[1] += 2;
-            buf[0] += 4;
-            buf[1] += 4;
+            pbuf += 4;
             pb += 2;
         }
 
         pa[0] += width;
         pa[1] += width;
-
-        buf[0] += buf_incr;
-        buf[1] += buf_incr;
+        pbuf += buf_incr;
     }
 
     return y + 2;
@@ -168,12 +159,10 @@ unsigned blit_roqframe_downsampled(unsigned start_y, unsigned short* pbuf,
     unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height, unsigned buf_incr, const short breakval)
 {
     unsigned x, y;
-    unsigned short* buf[2] = { pbuf, NULL };
     unsigned char* pa[2] = { ppa, NULL };
     unsigned char* pb = ppb;
 
     pa[1] = pa[0] + width;
-    buf[1] = buf[0] + 320;
 
     for (y = start_y; y < height; y += 2)
     {
@@ -211,23 +200,20 @@ unsigned blit_roqframe_downsampled(unsigned start_y, unsigned short* pbuf,
             unsigned b = YUVClip8(t);
 
             unsigned rgb = YUVRGB555(r, g, b);
-            buf[0][0] = rgb;
-            buf[0][1] = rgb;
-            buf[1][0] = rgb;
-            buf[1][1] = rgb;
+            pbuf[0] = rgb;
+            pbuf[1] = rgb;
+            pbuf[320+0] = rgb;
+            pbuf[320+1] = rgb;
 
             pa[0] += 2;
             pa[1] += 2;
-            buf[0] += 2;
-            buf[1] += 2;
+            pbuf += 2;
             pb += 2;
         }
 
         pa[0] += width;
         pa[1] += width;
-
-        buf[0] += buf_incr;
-        buf[1] += buf_incr;
+        pbuf += buf_incr;
     }
 
     return y + 2;

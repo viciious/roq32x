@@ -76,6 +76,8 @@ init_hardware:
         move.w  #0x8104,(a0)            /* display off, vblank disabled */
         move.w  (a0),d0                 /* read VDP Status reg */
 
+        jsr     reset_banks
+
 | init joyports
         move.b  #0x40,0xA10009
         move.b  #0x40,0xA1000B
@@ -223,6 +225,8 @@ handle_req:
         bls     stop_music
         cmpi.w  #0x05FF,d0
         bls     read_mouse
+        cmpi.w  #0x12FF,d0
+        bls     set_bankpage
 | unknown command
         move.w  #0,0xA15120         /* done */
         bra.b   main_loop
@@ -257,17 +261,18 @@ write_sram:
         move.w  #0x2000,sr          /* enable ints */
         bra     main_loop
 
-set_rom_bank:
-        move.l  a0,d3
-        swap    d3
-        lsr.w   #4,d3
-        andi.w  #3,d3
-        move.w  d3,0xA15104         /* set ROM bank select */
-        move.l  a0,d3
-        andi.l  #0x0FFFFF,d3
-        ori.l   #0x900000,d3
-        movea.l d3,a1
-        rts
+set_bankpage:
+        move.w  #0x2700,sr          /* disable ints */
+        andi.l  #0x07,d0            /* bank number */
+        move.w  0xA15122,d1         /* COMM2 holds page number */
+        lea     0xA130F0,a0
+        add.l   d0,d0
+        move.b  #1,0xA15107         /* set RV */
+        move.b  d1,1(a0,d0.l)
+        move.b  #0,0xA15107         /* set RV */
+        move.w  #0,0xA15120         /* release SH2 now */
+        move.w  #0x2000,sr          /* enable ints */
+        bra     main_loop
 
 start_music:
         tst.w   cd_ok
@@ -586,6 +591,19 @@ mky_err:
 
         move.w  d2,sr           /* restore int status */
         moveq   #-1,d0
+        rts
+
+
+reset_banks:
+        move.b  #1,0xA15107         /* set RV */
+        move.b  #1,0xA130F3         /* bank for 0x080000-0x0FFFFF */
+        move.b  #2,0xA130F5         /* bank for 0x100000-0x17FFFF */
+        move.b  #3,0xA130F7         /* bank for 0x180000-0x1FFFFF */
+        move.b  #4,0xA130F9         /* bank for 0x200000-0x27FFFF */
+        move.b  #5,0xA130FB         /* bank for 0x280000-0x2FFFFF */
+        move.b  #6,0xA130FD         /* bank for 0x300000-0x37FFFF */
+        move.b  #7,0xA130FF         /* bank for 0x380000-0x3FFFFF */
+        move.b  #0,0xA15107         /* set RV */
         rts
 
 

@@ -97,6 +97,24 @@
 
 #define SH2_INT_IPRA        (*(volatile unsigned short *)0xFFFFFEE2)
 
+#define SH2_FRT_TIER        (*(volatile unsigned char *)0xFFFFFE10)
+#define SH2_FRT_FTCSR       (*(volatile unsigned char *)0xFFFFFE11)
+#define SH2_FRT_FRCH        (*(volatile unsigned char *)0xFFFFFE12)
+#define SH2_FRT_FRCL        (*(volatile unsigned char *)0xFFFFFE13)
+#define SH2_FRT_OCRH        (*(volatile unsigned char *)0xFFFFFE14)
+#define SH2_FRT_OCRL        (*(volatile unsigned char *)0xFFFFFE15)
+#define SH2_FRT_TCR         (*(volatile unsigned char *)0xFFFFFE16)
+#define SH2_FRT_TOCR        (*(volatile unsigned char *)0xFFFFFE17)
+#define SH2_FRT_ICRH        (*(volatile unsigned char *)0xFFFFFE18)
+#define SH2_FRT_ICRL        (*(volatile unsigned char *)0xFFFFFE19)
+
+#define SH2_WDT_RTCSR       (*(volatile unsigned char *)0xFFFFFE80)
+#define SH2_WDT_RTCNT       (*(volatile unsigned char *)0xFFFFFE81)
+#define SH2_WDT_RRSTCSR     (*(volatile unsigned char *)0xFFFFFE83)
+#define SH2_WDT_WTCSR_TCNT  (*(volatile unsigned short *)0xFFFFFE80)
+#define SH2_WDT_WRWOVF_RST  (*(volatile unsigned short *)0xFFFFFE82)
+#define SH2_WDT_VCR         (*(volatile unsigned short *)0xFFFFFEE4)
+
 #define SEGA_CTRL_UP        0x0001
 #define SEGA_CTRL_DOWN      0x0002
 #define SEGA_CTRL_LEFT      0x0004

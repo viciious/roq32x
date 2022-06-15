@@ -7,16 +7,23 @@
 #include "blit.h"
 
 roq_info* gri;
+static roq_file grf;
 
 static int blit_mode = 0;
 
+int secondary_task(int cmd) RoQ_ATTR_SDRAM;
+void secondary(void) RoQ_ATTR_SDRAM;
+
+static void unswitch_ROMbanks(roq_file* fp) RoQ_ATTR_SDRAM;
+static void switch_ROMbanks(roq_file* fp, int readhead) RoQ_ATTR_SDRAM;
+
 // Slave SH2 support code ----------------------------------------------
 
-int slave_task(int cmd)
+int secondary_task(int cmd)
 {
     switch (cmd) {
     case 1:
-        snddma_slave_init(RoQ_SAMPLE_RATE);
+        snddma_sec_init(RoQ_SAMPLE_RATE);
         return 1;
     case 2:
         Hw32xScreenFlip(1);
@@ -32,14 +39,12 @@ int slave_task(int cmd)
 
         y = MARS_SYS_COMM6;
         //ClearCache();
-        MARS_SYS_COMM4 = 4;
+        MARS_SYS_COMM4 = 0;
 
         height = (gri->display_height + y) / 2 + 1;
         height &= ~1;
 
         blit_roqframe(gri, blit_mode, 0, y, height, 0xfe);
-
-        while (MARS_SYS_COMM4 != 2) {}
     }
     return 0;
 
@@ -53,7 +58,7 @@ int slave_task(int cmd)
     return 0;
 }
 
-void slave(void)
+void secondary(void)
 {
     ClearCache();
 
@@ -62,7 +67,7 @@ void slave(void)
 
         while ((cmd = MARS_SYS_COMM4) == 0) {}
 
-        int res = slave_task(cmd);
+        int res = secondary_task(cmd);
         if (res > 0) {
             MARS_SYS_COMM4 = 0;
         }
@@ -79,9 +84,7 @@ void display(int framecount, int hudenable, int fpscount, int readtics, int tota
     }
 
     MARS_SYS_COMM4 = 0xff;
-    while (MARS_SYS_COMM4 != 0) {}
-
-    ClearCache();
+    while (MARS_SYS_COMM4 != 0);
 
     y = MARS_SYS_COMM6 - 2;
     if (y < 0) y = 0;
@@ -110,30 +113,74 @@ void display(int framecount, int hudenable, int fpscount, int readtics, int tota
             (snddma_length() * 2) >> 10, bps);
         break;
     case 2:
-        Hw32xScreenPrintf("%dx%d maxbps:%03d",
-            gri->width, gri->height, maxbps);
+        Hw32xScreenPrintf("%dx%d maxbps:%03d 0x%x 0x%x",
+            gri->width, gri->height, maxbps, gri->fp->pos, gri->fp->rover);
         break;
     default:
         break;
     }
 
-    while (MARS_SYS_COMM4 == 3) {}
+    while (MARS_SYS_COMM4 != 0);
 
 nextframe:
     MARS_SYS_COMM6 = 0;
     MARS_SYS_COMM4 = 2;
 }
 
+static void unswitch_ROMbanks(roq_file* fp)
+{
+    Hw32xSetBankPage(6, 6);
+    Hw32xSetBankPage(7, 7);
+    ClearCache();
+}
+
+static void switch_ROMbanks(roq_file* fp, int readhead)
+{
+    uintptr_t ptr = (uintptr_t)fp->pos;
+    int page = (ptr - 0x02000000) >> 19;
+    int nextpage = (ptr + readhead - 0x02000000) >> 19;
+
+    if (nextpage > 7)
+    {
+        if (nextpage > fp->page)
+        {
+            Hw32xSetBankPage(6, page);
+            Hw32xSetBankPage(7, nextpage);
+            ClearCache();
+            fp->rover = (uint8_t*)(0x02300000 + (ptr & 0x7FFFF));
+        }
+    }
+    else
+    {
+        if (fp->page > 7)
+        {
+            unswitch_ROMbanks(fp);
+            fp->rover = fp->pos;
+        }
+    }
+
+    fp->page = page;
+}
+
 roq_file* open_ROMroq(void)
 {
-    static roq_file grf;
     roq_file* fp = &grf;
 
     fp->base = roqBase;
     fp->pos = roqBase;
+    fp->rover = roqBase;
     fp->size = roqSize;
     fp->end = fp->base + roqSize;
+    fp->page = 0;
     return &grf;
+}
+
+void close_ROMroq(void)
+{
+    if (grf.page > 7)
+    {
+        unswitch_ROMbanks(&grf);
+    }
 }
 
 int main(void)
@@ -150,6 +197,15 @@ int main(void)
     unsigned bytesread, bps, maxbps;
     int ticksperframe;
 
+    SetSH2SR(1);
+
+    SH2_WDT_WTCSR_TCNT = 0x5A00; /* WDT TCNT = 0 */
+    SH2_WDT_WTCSR_TCNT = 0xA53E; /* WDT TCSR = clr OVF, IT mode, timer on, clksel = Fs/4096 */
+
+/* init hires timer system */
+    SH2_WDT_VCR = (65 << 8) | (SH2_WDT_VCR & 0x00FF); // set exception vector for WDT
+    SH2_INT_IPRA = (SH2_INT_IPRA & 0xFF0F) | 0x0020; // set WDT INT to priority 2
+
     Hw32xInit(MARS_VDP_MODE_32K, 0);
 
     Hw32xScreenClear();
@@ -161,109 +217,123 @@ int main(void)
     MARS_SYS_COMM6 = 0;
     while (MARS_SYS_COMM4 != 0) {}
 
-    if ((gri = roq_open(open_ROMroq(), 200)) == NULL) return -1;
+    if ((gri = roq_open(open_ROMroq(), 200, switch_ROMbanks)) == NULL) return -1;
 
     blit_mode = 0;
-    if (gri->width <= BLIT_STRETCH_WIDTH_X2)
-    {
-        volatile unsigned short* lines = &MARS_FRAMEBUFFER;
-
-        for (i = 0; i < 2; i++)
-        {
-            for (j = 0; j < 256; j++)
-            {
-                if (j < 180)
-                    lines[j] = (j / 2) * 320 + 0x100;
-                else if (j < 200)
-                    lines[j] = j * 320 + 0x100;
-                else
-                    lines[j] = 199 * 320 + 0x100;
-            }
-
-            Hw32xScreenClear();
-        }
-    }
-
-    if (gri->width <= BLIT_STRETCH_WIDTH_X2) {
-        ticksperframe = 2; // 30/25 fps
-    }
-    else {
-        ticksperframe = (MARS_VDP_DISPMODE & MARS_NTSC_FORMAT ? 4 : 3); // 15 / 16-17fps
-    }
-
-    fpscount = 0;
-    framecount = 0;
-
-    prevsec = 0;
-    prevsecframe = 0;
-
-    bytesread = 0;
-    bps = 0;
-    maxbps = 0;
 
     totaltics = 0;
     inputticcount = 0;
 
-    while (1) {
-        int sec;
-        int ret = 1;
-        int starttics;
-        int waittics;
+    while (1)
+    {
+start:
+        fpscount = 0;
+        framecount = 0;
 
-        starttics = Hw32xGetTicks();
+        prevsec = 0;
+        prevsecframe = 0;
 
-        sec = starttics / (MARS_VDP_DISPMODE & MARS_NTSC_FORMAT ? 60 : 50); // FIXME: add proper NTSC vs PAL rate detection
-        if (sec != prevsec) {
-            fpscount = (framecount - prevsecframe) / (sec - prevsec);
-            prevsec = sec;
-            prevsecframe = framecount;
-            bps = bytesread >> 10;
-            bytesread = 0;
-            if (bps > maxbps)
-                maxbps = bps;
+        bytesread = 0;
+        bps = 0;
+        maxbps = 0;
+
+        if (gri->width <= BLIT_STRETCH_WIDTH_X2) {
+            ticksperframe = 2; // 30/25 fps
         }
-
-        if (starttics > inputticcount + 7) {
-            if (MARS_SYS_COMM8 & SEGA_CTRL_A) {
-                blit_mode ^= 1;
-            }
-            if (MARS_SYS_COMM8 & SEGA_CTRL_B) {
-                hud = (hud + 1) % 3;
-                clearhud = 2;
-            }
-            if (MARS_SYS_COMM8 & SEGA_CTRL_START) {
-                paused ^= 1;
-            }
-            inputticcount = starttics;
+        else {
+            ticksperframe = (MARS_VDP_DISPMODE & MARS_NTSC_FORMAT ? 4 : 3); // 15 / 16-17fps
         }
+        ticksperframe = 2;
 
-        readtics = starttics;
-
-        if (framecount == 0 || !paused)
+        if (gri->width <= BLIT_STRETCH_WIDTH_X2)
         {
-            ret = roq_read_frame(gri, 1);
-            if (ret <= 0) {
-                return 1;
+            volatile unsigned short* lines = &MARS_FRAMEBUFFER;
+
+            for (i = 0; i < 2; i++)
+            {
+                for (j = 0; j < 256; j++)
+                {
+                    if (j < 180)
+                        lines[j] = (j / 2) * 320 + 0x100;
+                    else if (j < 200)
+                        lines[j] = j * 320 + 0x100;
+                    else
+                        lines[j] = 199 * 320 + 0x100;
+                }
+
+                Hw32xScreenClear();
             }
-            bytesread += gri->frame_bytes;
         }
 
-        readtics = Hw32xGetTicks() - readtics;
+        while (1) {
+            int sec;
+            int ret = 1;
+            int starttics;
+            int waittics;
 
-        display(framecount, hud, fpscount, readtics, totaltics, bps, maxbps, clearhud);
+            starttics = Hw32xGetTicks();
 
-        clearhud--;
-        if (clearhud < 0)
-            clearhud = 0;
+            sec = starttics / (MARS_VDP_DISPMODE & MARS_NTSC_FORMAT ? 60 : 50); // FIXME: add proper NTSC vs PAL rate detection
+            if (sec != prevsec) {
+                fpscount = (framecount - prevsecframe) / (sec - prevsec);
+                prevsec = sec;
+                prevsecframe = framecount;
+                bps = bytesread >> 10;
+                bytesread = 0;
+                if (bps > maxbps)
+                    maxbps = bps;
+            }
 
-        totaltics = Hw32xGetTicks() - starttics;
+            if (starttics > inputticcount + 7) {
+                if (MARS_SYS_COMM8 & SEGA_CTRL_A) {
+                    blit_mode ^= 1;
+                }
+                if (MARS_SYS_COMM8 & SEGA_CTRL_B) {
+                    hud = (hud + 1) % 3;
+                    clearhud = 2;
+                }
+                if (MARS_SYS_COMM8 & SEGA_CTRL_START) {
+                    paused ^= 1;
+                }
+                inputticcount = starttics;
+            }
 
-        waittics = totaltics;
-        while (waittics < ticksperframe) {
-            waittics = Hw32xGetTicks() - starttics;
+            readtics = starttics;
+
+            if (framecount == 0 || !paused)
+            {
+                ret = roq_read_frame(gri, 0);
+
+                if (ret == 0) {
+                    while (MARS_SYS_COMM4 != 0);
+                    close_ROMroq();
+                    if ((gri = roq_open(open_ROMroq(), 200, switch_ROMbanks)) == NULL)
+                        return -1;
+                    goto start;
+                }
+
+                if (ret < 0)
+                    return -1;
+                bytesread += gri->frame_bytes;
+            }
+
+            readtics = Hw32xGetTicks() - readtics;
+
+            display(framecount, hud, fpscount, readtics, totaltics, bps, maxbps, clearhud);
+
+            clearhud--;
+            if (clearhud < 0)
+                clearhud = 0;
+
+            totaltics = Hw32xGetTicks() - starttics;
+
+            waittics = totaltics;
+            while (waittics < ticksperframe) {
+                waittics = Hw32xGetTicks() - starttics;
+            }
+
+            framecount++;
         }
-
-        framecount++;
     }
 
     return 0;

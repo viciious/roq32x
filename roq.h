@@ -35,10 +35,14 @@ typedef struct {
 
 typedef struct {
 	unsigned char *pos;
+	unsigned char* rover;
 	intptr_t size;
 	unsigned char *base;
 	unsigned char* end;
+	int page;
 } roq_file;
+
+typedef void (*roq_bufferdata_t)(roq_file*, int readahead);
 
 typedef struct {
 	roq_file *fp;
@@ -54,6 +58,7 @@ typedef struct {
 	unsigned char y256[2][RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT] __attribute__((aligned(16)));
 	unsigned char uv256[2][RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT / 4 * 2] __attribute__((aligned(16)));
 	unsigned int frame_bytes;
+	roq_bufferdata_t buffer;
 
 	unsigned chunk_arg0, chunk_arg1;
 	unsigned vqflg;
@@ -62,9 +67,10 @@ typedef struct {
 } roq_info;
 
 /* -------------------------------------------------------------------------- */
+
 void roq_init(void);
 void roq_cleanup(void);
-roq_info *roq_open(roq_file *fp, int max_height);
+roq_info *roq_open(roq_file *fp, int max_height, roq_bufferdata_t buf);
 void roq_close(roq_info *ri);
 int roq_read_video(roq_info *ri, char loop);
 int roq_read_audio(roq_info *ri, char loop);

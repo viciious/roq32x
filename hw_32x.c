@@ -24,11 +24,14 @@ static unsigned char fgs = 0, bgs = 0;
 
 static volatile unsigned int mars_vblank_count = 0;
 
+volatile unsigned mars_pwdt_ovf_count = 0;
+volatile unsigned mars_swdt_ovf_count = 0;
+
 volatile unsigned short currentFB = 0;
 
 #define UNCACHED_CURFB (*(short *)((int)&currentFB|0x20000000))
 
-void master_vbi_handler(void)
+void pri_vbi_handler(void)
 {
     mars_vblank_count++;
 }
@@ -518,5 +521,13 @@ void HwMdPutsf(int x, int y, int color, const char* format, ...)
     buff[sizeof(buff) - 1] = 0;
 
     HwMdPuts(buff, color, x, y);
+}
+
+void Hw32xSetBankPage(int bank, int page)
+{
+    while (MARS_SYS_COMM0);
+    MARS_SYS_COMM2 = page;
+    MARS_SYS_COMM0 = 0x1200 | bank;
+    while (MARS_SYS_COMM0);
 }
 

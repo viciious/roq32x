@@ -9,16 +9,16 @@ LDSCRIPTSDIR = $(ROOTDIR)/ldscripts
 LIBPATH = -L$(ROOTDIR)/sh-elf/lib -L$(ROOTDIR)/sh-elf/lib/gcc/sh-elf/4.6.2 -L$(ROOTDIR)/sh-elf/sh-elf/lib
 INCPATH = -I. -I$(ROOTDIR)/sh-elf/include -I$(ROOTDIR)/sh-elf/sh-elf/include
 
-CCFLAGS = -m2 -mb -Wall -c -fomit-frame-pointer -fno-builtin  -ffunction-sections -fdata-sections -g
-CCFLAGS += -fno-align-loops -fno-align-functions -fno-align-jumps -fno-align-labels
+CCFLAGS = -m2 -mb -Wall -c -fomit-frame-pointer -fno-builtin -ffunction-sections -g
 CCFLAGS += -D__32X__ -DMARS
 
 HWFLAGS := $(CCFLAGS)
 HWFLAGS += -O1 -fno-lto
 
-CCFLAGS += -O2 -funroll-loops -funsafe-loop-optimizations -fno-align-loops -fno-align-functions -fno-align-jumps -fno-align-labels -lto
+CCFLAGS += -O2 -funroll-loops -funsafe-loop-optimizations -lto
+CCFLAGS += -fno-align-loops -fno-align-functions -fno-align-jumps -fno-align-labels
 
-LDFLAGS = -T $(LDSCRIPTSDIR)/mars.ld -Wl,-Map=output.map -nostdlib -Wl,--gc-sections --specs=nosys.specs -flto
+LDFLAGS = -T mars.ld -Wl,-Map=output.map -nostdlib -Wl,--gc-sections --specs=nosys.specs -flto
 ASFLAGS = --big
 
 PREFIX = $(ROOTDIR)/sh-elf/bin/sh-elf-
@@ -42,14 +42,17 @@ OBJS = \
 	roqbase.o \
 	blit.o
 
-all: m68k.bin $(TARGET).bin
+all: m68k.bin $(TARGET).32x
 
 m68k.bin:
 	make -C src-md
 
-$(TARGET).bin: $(TARGET).elf
-	$(OBJC) -O binary $< temp.bin
-	$(DD) if=temp.bin of=$@ bs=128K conv=sync
+$(TARGET).32x: $(TARGET).elf
+	$(OBJC) -O binary $< temp2.bin
+	$(DD) if=temp2.bin of=temp.bin bs=64K conv=sync
+	rm -f temp3.bin
+	cat temp.bin roq/commercial.roq >>temp3.bin
+	$(DD) if=temp3.bin of=$@ bs=512K conv=sync
 
 $(TARGET).elf: $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $(TARGET).elf

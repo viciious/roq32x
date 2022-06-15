@@ -30,8 +30,17 @@
 
 /* -------------------------------------------------------------------------- */
 
+static void roq_bufferdata_dummy(roq_file* fp, int readhead) RoQ_ATTR_SDRAM;
+static void roq_on_first_frame(roq_info* ri) RoQ_ATTR_SDRAM;
+
+static void roq_bufferdata_dummy(roq_file* fp, int readhead)
+{
+	fp->rover = fp->pos;
+}
+
 static inline int roq_fgetc(roq_file* fp) {
-	return *fp->pos++;
+	fp->pos++;
+	return *fp->rover++;
 }
 
 static inline int roq_ftell(roq_file* fp) {
@@ -60,8 +69,9 @@ static int roq_fseek(roq_file* fp, intptr_t whence, int mode) {
 static inline unsigned short get_word(roq_file* fp)
 {
 	unsigned short ret;
-	ret = (fp->pos[0]);
-	ret |= (fp->pos[1]) << 8;
+	ret = (fp->rover[0]);
+	ret |= (fp->rover[1]) << 8;
+	fp->rover += 2;
 	fp->pos += 2;
 	return ret;
 }
@@ -71,13 +81,12 @@ static inline unsigned short get_word(roq_file* fp)
 static inline unsigned int get_long(roq_file* fp)
 {
 	unsigned int ret;
-
-	ret = (fp->pos[0]);
-	ret |= (fp->pos[1]) << 8;
-	ret |= (fp->pos[2]) << 16;
-	ret |= (fp->pos[3]) << 24;
+	ret = (fp->rover[0]);
+	ret |= (fp->rover[1]) << 8;
+	ret |= (fp->rover[2]) << 16;
+	ret |= (fp->rover[3]) << 24;
+	fp->rover += 4;
 	fp->pos += 4;
-
 	return ret;
 }
 
@@ -107,6 +116,8 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height)
 	ri->roq_start = roq_ftell(fp);
 	while (!roq_feof(fp))
 	{
+		ri->buffer(fp, 2 + 4 + 2);
+
 		chunk_id = get_word(fp);
 		chunk_size = get_long(fp);
 		get_word(fp);
@@ -114,6 +125,8 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height)
 
 		if (chunk_id == RoQ_INFO)		/* video info */
 		{
+			ri->buffer(fp, chunk_size);
+
 			ri->width = get_word(fp);
 			ri->height = get_word(fp);
 			ri->halfwidth = ri->width >> 1;
@@ -128,6 +141,12 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height)
 		{
 			roq_fseek(fp, chunk_size, SEEK_CUR);
 		}
+	}
+
+	if (roq_feof(fp))
+	{
+		// no info chunk
+		return 1;
 	}
 
 	return 0;
@@ -294,19 +313,9 @@ static inline void apply_motion_8x8(roq_info* ri, unsigned x, unsigned y, unsign
 	}
 }
 
-
-/* -------------------------------------------------------------------------- */
-roq_info* roq_open(roq_file* fp, int max_height)
+static void roq_on_first_frame(roq_info* ri)
 {
 	int i;
-	roq_info* ri;
-	static roq_info ris;
-
-	ri = &ris;
-	ri->fp = fp;
-
-	if (max_height > RoQ_MAX_HEIGHT) max_height = RoQ_MAX_HEIGHT;
-	if (roq_parse_file(fp, ri, max_height)) return NULL;
 
 	for (i = 0; i < 2; i++)
 	{
@@ -334,6 +343,21 @@ roq_info* roq_open(roq_file* fp, int max_height)
 
 	ri->frame_num = 0;
 	ri->aud_chunk_size = 0;
+}
+
+/* -------------------------------------------------------------------------- */
+roq_info* roq_open(roq_file* fp, int max_height, roq_bufferdata_t buf)
+{
+	roq_info* ri;
+	static roq_info ris;
+
+	ri = &ris;
+	ri->fp = fp;
+	ri->buffer = buf ? buf : roq_bufferdata_dummy;
+
+	if (max_height > RoQ_MAX_HEIGHT) max_height = RoQ_MAX_HEIGHT;
+	if (roq_parse_file(fp, ri, max_height)) return NULL;
+	roq_on_first_frame(ri);
 
 	return ri;
 }
@@ -471,13 +495,18 @@ int roq_read_frame(roq_info* ri, char loop)
 loop_start:
 	while (!roq_feof(fp))
 	{
+		ri->buffer(fp, 2 + 4 + 2);
+
 		chunk_id = get_word(fp);
 		chunk_size = get_long(fp);
 		chunk_arg0 = roq_fgetc(fp);
 		chunk_arg1 = roq_fgetc(fp);
 		next_chunk = roq_ftell(fp) + chunk_size;
 
+		ri->buffer(fp, chunk_size);
 		ri->frame_bytes += chunk_size;
+
+		buf = fp->rover;
 
 		if (chunk_id == RoQ_QUAD_VQ)
 			break;
@@ -504,7 +533,6 @@ loop_start:
 					ri->qcells[i].idx[j] = roq_fgetc(fp);
 			}
 			break;
-
 		case RoQ_SOUND_MONO:
 		{
 			int j = 0;
@@ -574,26 +602,29 @@ loop_start:
 		break;
 		}
 
+		fp->rover = buf + chunk_size;
 		roq_fseek(fp, next_chunk, SEEK_SET);
 	}
 
 	if (roq_feof(fp))
 	{
+		snddma_wait();
 		if (loop) {
-			snddma_wait();
 			roq_fseek(fp, ri->roq_start, SEEK_SET);
+			roq_on_first_frame(ri);
 			goto loop_start;
 		}
-		return 1;
+		return 0;
 	}
 
 	if (chunk_id != RoQ_QUAD_VQ)
+	{
 		return 0;
+	}
 
 	ri->frame_num++;
 
-	buf = fp->pos;
-	roq_fseek(fp, chunk_size, SEEK_CUR);
+	buf = fp->rover;
 
 	ri->chunk_arg0 = chunk_arg0;
 	ri->chunk_arg1 = chunk_arg1;
@@ -657,5 +688,7 @@ loop_start:
 		tp = ri->uv[0]; ri->uv[0] = ri->uv[1]; ri->uv[1] = tp;
 	}
 
+	fp->rover = buf + chunk_size;
+	roq_fseek(fp, next_chunk, SEEK_SET);
 	return 1;
 }

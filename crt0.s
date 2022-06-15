@@ -27,8 +27,8 @@
 
 ! Standard MegaDrive ROM header at 0x100
 
-        .ascii  "SEGA 32X RoQ Pla"
-        .ascii  "yer             "
+        .ascii  "SEGA SSF        "
+        .ascii  "                "
         .ascii  "RoQ Player for 3"
         .ascii  "2X              "
         .ascii  "                "
@@ -38,7 +38,7 @@
         .ascii  "BLD 20210403-0"
         .word   0x0000
         .ascii  "J6              "
-        .long   0x00000000,0x003FFFFF   /* ROM start, end */
+        .long   0x00000000,0x01FFFFFF   /* ROM start, end */
         .long   0x00FF0000,0x00FFFFFF   /* RAM start, end */
 
 !        .ascii  "RA"                    /* External RAM */
@@ -104,15 +104,15 @@
 
 ! Standard Mars Header at 0x3C0
 
-        .ascii  "32X RoQ Player  "              /* module name */
-        .long   0x00000000                      /* version */
-        .long   __text_end-0x02000000           /* Source (in ROM) */
-        .long   0x00000000                      /* Destination (in SDRAM) */
-        .long   __data_size                     /* Size */
-        .long   master_start                    /* Master SH2 Jump */
-        .long   slave_start                     /* Slave SH2 Jump */
-        .long   master_vbr                      /* Master SH2 VBR */
-        .long   slave_vbr                       /* Slave SH2 VBR */
+        .ascii  "32X RoQ Player  "      /* module name */
+        .long   0x00000000              /* version */
+        .long   __text_end-0x02000000   /* Source (in ROM) */
+        .long   0x00000000              /* Destination (in SDRAM) */
+        .long   __data_size             /* Size */
+        .long   pri_start               /* Primary SH2 Jump */
+        .long   sec_start               /* Secondary SH2 Jump */
+        .long   pri_vbr                 /* Primary SH2 VBR */
+        .long   sec_vbr                 /* Secondary SH2 VBR */
 
 ! Standard 32X startup code for MD side at 0x3F0
 
@@ -201,130 +201,133 @@
 ! Master Vector Base Table
 !-----------------------------------------------------------------------
 
-master_vbr:
-        .long   master_start    /* Cold Start PC */
-        .long   0x0603FF00      /* Cold Start SP */
-        .long   master_start    /* Manual Reset PC */
-        .long   0x0603FF00      /* Manual Reset SP */
-        .long   master_err      /* Illegal instruction */
+        .equ    pri_stack, 0x0603F800
+        .equ    sec_stack, 0x06040000
+
+        .align  4
+pri_vbr:
+        .long   pri_start       /* Cold Start PC */
+        .long   pri_stack       /* Cold Start SP */
+        .long   pri_start       /* Manual Reset PC */
+        .long   pri_stack       /* Manual Reset SP */
+        .long   pri_err         /* Illegal instruction */
         .long   0x00000000      /* reserved */
-        .long   master_err      /* Invalid slot instruction */
+        .long   pri_err         /* Invalid slot instruction */
         .long   0x00000000      /* reserved */
         .long   0x00000000      /* reserved */
-        .long   master_err      /* CPU address error */
-        .long   master_err      /* DMA address error */
-        .long   master_err      /* NMI vector */
-        .long   master_err      /* User break vector */
+        .long   pri_err         /* CPU address error */
+        .long   pri_err         /* DMA address error */
+        .long   pri_err         /* NMI vector */
+        .long   pri_err         /* User break vector */
         .space  76              /* reserved */
-        .long   master_err      /* TRAPA #32 */
-        .long   master_err      /* TRAPA #33 */
-        .long   master_err      /* TRAPA #34 */
-        .long   master_err      /* TRAPA #35 */
-        .long   master_err      /* TRAPA #36 */
-        .long   master_err      /* TRAPA #37 */
-        .long   master_err      /* TRAPA #38 */
-        .long   master_err      /* TRAPA #39 */
-        .long   master_err      /* TRAPA #40 */
-        .long   master_err      /* TRAPA #41 */
-        .long   master_err      /* TRAPA #42 */
-        .long   master_err      /* TRAPA #43 */
-        .long   master_err      /* TRAPA #44 */
-        .long   master_err      /* TRAPA #45 */
-        .long   master_err      /* TRAPA #46 */
-        .long   master_err      /* TRAPA #47 */
-        .long   master_err      /* TRAPA #48 */
-        .long   master_err      /* TRAPA #49 */
-        .long   master_err      /* TRAPA #50 */
-        .long   master_err      /* TRAPA #51 */
-        .long   master_err      /* TRAPA #52 */
-        .long   master_err      /* TRAPA #53 */
-        .long   master_err      /* TRAPA #54 */
-        .long   master_err      /* TRAPA #55 */
-        .long   master_err      /* TRAPA #56 */
-        .long   master_err      /* TRAPA #57 */
-        .long   master_err      /* TRAPA #58 */
-        .long   master_err      /* TRAPA #59 */
-        .long   master_err      /* TRAPA #60 */
-        .long   master_err      /* TRAPA #61 */
-        .long   master_err      /* TRAPA #62 */
-        .long   master_err      /* TRAPA #63 */
-        .long   master_lvl1     /* Level 1 IRQ */
-        .long   master_lvl2_3   /* Level 2 & 3 IRQ's */
-        .long   master_lvl4_5   /* Level 4 & 5 IRQ's */
-        .long   master_pwm      /* PWM interupt */
-        .long   master_cmd      /* Command interupt */
-        .long   master_hbi      /* H Blank interupt */
-        .long   master_vbi      /* V Blank interupt */
-        .long   master_rst      /* Reset Button */
+        .long   pri_err         /* TRAPA #32 */
+        .long   pri_err         /* TRAPA #33 */
+        .long   pri_err         /* TRAPA #34 */
+        .long   pri_err         /* TRAPA #35 */
+        .long   pri_err         /* TRAPA #36 */
+        .long   pri_err         /* TRAPA #37 */
+        .long   pri_err         /* TRAPA #38 */
+        .long   pri_err         /* TRAPA #39 */
+        .long   pri_err         /* TRAPA #40 */
+        .long   pri_err         /* TRAPA #41 */
+        .long   pri_err         /* TRAPA #42 */
+        .long   pri_err         /* TRAPA #43 */
+        .long   pri_err         /* TRAPA #44 */
+        .long   pri_err         /* TRAPA #45 */
+        .long   pri_err         /* TRAPA #46 */
+        .long   pri_err         /* TRAPA #47 */
+        .long   pri_err         /* TRAPA #48 */
+        .long   pri_err         /* TRAPA #49 */
+        .long   pri_err         /* TRAPA #50 */
+        .long   pri_err         /* TRAPA #51 */
+        .long   pri_err         /* TRAPA #52 */
+        .long   pri_err         /* TRAPA #53 */
+        .long   pri_err         /* TRAPA #54 */
+        .long   pri_err         /* TRAPA #55 */
+        .long   pri_err         /* TRAPA #56 */
+        .long   pri_err         /* TRAPA #57 */
+        .long   pri_err         /* TRAPA #58 */
+        .long   pri_err         /* TRAPA #59 */
+        .long   pri_err         /* TRAPA #60 */
+        .long   pri_err         /* TRAPA #61 */
+        .long   pri_err         /* TRAPA #62 */
+        .long   pri_err         /* TRAPA #63 */
+        .long   pri_irq         /* FRT interrupt (Level 1) */
+        .long   pri_irq         /* WDT interrupt (Level 2 & 3) */
+        .long   pri_irq         /* DMA interrupt (Level 4 & 5) */
+        .long   pri_irq         /* PWM interupt (Level 6 & 7) */
+        .long   pri_irq         /* Command interupt (Level 8 & 9) */
+        .long   pri_irq         /* H Blank interupt (Level 10 & 11) */
+        .long   pri_irq         /* V Blank interupt (Level 12 & 13) */
+        .long   pri_irq         /* Reset Button (Level 14 & 15) */
 
 !-----------------------------------------------------------------------
 ! Slave Vector Base Table
 !-----------------------------------------------------------------------
 
-slave_vbr:
-        .long   slave_start     /* Cold Start PC */
-        .long   0x06040000      /* Cold Start SP */
-        .long   slave_start     /* Manual Reset PC */
-        .long   0x06040000      /* Manual Reset SP */
-        .long   slave_err       /* Illegal instruction */
+sec_vbr:
+        .long   sec_start       /* Cold Start PC */
+        .long   sec_stack       /* Cold Start SP */
+        .long   sec_start       /* Manual Reset PC */
+        .long   sec_stack       /* Manual Reset SP */
+        .long   sec_err         /* Illegal instruction */
         .long   0x00000000      /* reserved */
-        .long   slave_err       /* Invalid slot instruction */
+        .long   sec_err         /* Invalid slot instruction */
         .long   0x00000000      /* reserved */
         .long   0x00000000      /* reserved */
-        .long   slave_err       /* CPU address error */
-        .long   slave_err       /* DMA address error */
-        .long   slave_err       /* NMI vector */
-        .long   slave_err       /* User break vector */
+        .long   sec_err         /* CPU address error */
+        .long   sec_err         /* DMA address error */
+        .long   sec_err         /* NMI vector */
+        .long   sec_err         /* User break vector */
         .space  76              /* reserved */
-        .long   slave_err       /* TRAPA #32 */
-        .long   slave_err       /* TRAPA #33 */
-        .long   slave_err       /* TRAPA #34 */
-        .long   slave_err       /* TRAPA #35 */
-        .long   slave_err       /* TRAPA #36 */
-        .long   slave_err       /* TRAPA #37 */
-        .long   slave_err       /* TRAPA #38 */
-        .long   slave_err       /* TRAPA #39 */
-        .long   slave_err       /* TRAPA #40 */
-        .long   slave_err       /* TRAPA #41 */
-        .long   slave_err       /* TRAPA #42 */
-        .long   slave_err       /* TRAPA #43 */
-        .long   slave_err       /* TRAPA #44 */
-        .long   slave_err       /* TRAPA #45 */
-        .long   slave_err       /* TRAPA #46 */
-        .long   slave_err       /* TRAPA #47 */
-        .long   slave_err       /* TRAPA #48 */
-        .long   slave_err       /* TRAPA #49 */
-        .long   slave_err       /* TRAPA #50 */
-        .long   slave_err       /* TRAPA #51 */
-        .long   slave_err       /* TRAPA #52 */
-        .long   slave_err       /* TRAPA #53 */
-        .long   slave_err       /* TRAPA #54 */
-        .long   slave_err       /* TRAPA #55 */
-        .long   slave_err       /* TRAPA #56 */
-        .long   slave_err       /* TRAPA #57 */
-        .long   slave_err       /* TRAPA #58 */
-        .long   slave_err       /* TRAPA #59 */
-        .long   slave_err       /* TRAPA #60 */
-        .long   slave_err       /* TRAPA #61 */
-        .long   slave_err       /* TRAPA #62 */
-        .long   slave_err       /* TRAPA #63 */
-        .long   slave_lvl1      /* Level 1 IRQ */
-        .long   slave_lvl2_3    /* Level 2 & 3 IRQ's */
-        .long   slave_lvl4_5    /* Level 4 & 5 IRQ's */
-        .long   slave_pwm       /* PWM interupt (Level 6 & 7) */
-        .long   slave_cmd       /* Command interupt (Level 8 & 9) */
-        .long   slave_hbi       /* H Blank interupt (Level 10 & 11 */
-        .long   slave_vbi       /* V Blank interupt (Level 12 & 13) */
-        .long   slave_rst       /* Reset Button (Level 14 & 15) */
-        .long   slave_dma1      /* DMA1 TE INT */
+        .long   sec_err         /* TRAPA #32 */
+        .long   sec_err         /* TRAPA #33 */
+        .long   sec_err         /* TRAPA #34 */
+        .long   sec_err         /* TRAPA #35 */
+        .long   sec_err         /* TRAPA #36 */
+        .long   sec_err         /* TRAPA #37 */
+        .long   sec_err         /* TRAPA #38 */
+        .long   sec_err         /* TRAPA #39 */
+        .long   sec_err         /* TRAPA #40 */
+        .long   sec_err         /* TRAPA #41 */
+        .long   sec_err         /* TRAPA #42 */
+        .long   sec_err         /* TRAPA #43 */
+        .long   sec_err         /* TRAPA #44 */
+        .long   sec_err         /* TRAPA #45 */
+        .long   sec_err         /* TRAPA #46 */
+        .long   sec_err         /* TRAPA #47 */
+        .long   sec_err         /* TRAPA #48 */
+        .long   sec_err         /* TRAPA #49 */
+        .long   sec_err         /* TRAPA #50 */
+        .long   sec_err         /* TRAPA #51 */
+        .long   sec_err         /* TRAPA #52 */
+        .long   sec_err         /* TRAPA #53 */
+        .long   sec_err         /* TRAPA #54 */
+        .long   sec_err         /* TRAPA #55 */
+        .long   sec_err         /* TRAPA #56 */
+        .long   sec_err         /* TRAPA #57 */
+        .long   sec_err         /* TRAPA #58 */
+        .long   sec_err         /* TRAPA #59 */
+        .long   sec_err         /* TRAPA #60 */
+        .long   sec_err         /* TRAPA #61 */
+        .long   sec_err         /* TRAPA #62 */
+        .long   sec_err         /* TRAPA #63 */
+        .long   sec_irq         /* FRT interrupt (Level 1) */
+        .long   sec_irq         /* WDT interrupt (Level 2 & 3) */
+        .long   sec_irq         /* DMA interrupt (Level 4 & 5) */
+        .long   sec_irq         /* PWM interupt (Level 6 & 7) */
+        .long   sec_irq         /* Command interupt (Level 8 & 9) */
+        .long   sec_irq         /* H Blank interupt (Level 10 & 11 */
+        .long   sec_irq         /* V Blank interupt (Level 12 & 13) */
+        .long   sec_irq         /* Reset Button (Level 14 & 15) */
 
 !-----------------------------------------------------------------------
-! The Master SH2 starts here
+! The Primary SH2 starts here
 !-----------------------------------------------------------------------
 
-master_start:
+pri_start:
         ! clear interrupt flags
-        mov.l   _master_int_clr,r1
+        mov.l   _pri_int_clr,r1
         mov.w   r0,@-r1                 /* PWM INT clear */
         mov.w   r0,@r1
         mov.w   r0,@-r1                 /* CMD INT clear */
@@ -336,10 +339,28 @@ master_start:
         mov.w   r0,@-r1                 /* VRES INT clear */
         mov.w   r0,@r1
 
-        mov.l   _master_stk,r15
+        mov.l   _pri_sh2_frtctl,r1      /* Set Free Run Timer */
+        mov     #0x00,r0
+        mov.b   r0,@(0x00,r1)           /* TIER = ints disabled */
+        mov     #0xE2,r0
+        mov.b   r0,@(0x07,r1)           /* TOCR = select OCRA, output 1 on compare match */
+        mov     #0x00,r0
+        mov.b   r0,@(0x04,r1)           /* OCR_H */
+        mov     #0x01,r0
+        mov.b   r0,@(0x05,r1)           /* OCR_L => OCRA = 0x0001 */
+        mov     #0,r0
+        mov.b   r0,@(0x06,r1)           /* TCR = input captured on falling edge, CKS = Fs/8 */
+        mov     #1,r0
+        mov.b   r0,@(0x01,r1)           /* TCSR = clear FRC on match OCRA */
+        mov     #0x00,r0
+        mov.b   r0,@(0x03,r1)           /* FRC_L */
+        mov.b   r0,@(0x02,r1)           /* FRC_H => clear FRC */
+
+        mov.l   _pri_stk,r15
+
         ! purge cache and turn it off
-        mov.l   _master_cctl,r0
-        mov     #0x10,r1
+        mov.l   _pri_cctl,r0
+        mov     #0x10,r1                /* CP = cache purge, /CE = cache disabled */
         mov.b   r1,@r0
 
         ! clear bss
@@ -353,8 +374,8 @@ master_start:
         bf      0b
 
         ! wait for 68000 to finish init
-        mov.l   _master_sts,r0
-        mov.l   _master_ok,r1
+        mov.l   _pri_sts,r0
+        mov.l   _pri_ok,r1
 1:
         mov.l   @r0,r2
         nop
@@ -362,40 +383,43 @@ master_start:
         cmp/eq  r1,r2
         bt      1b
 
-        ! let Slave SH2 run
+        ! let Secondary SH2 run
         mov     #0,r1
-        mov.l   r1,@(4,r0)              /* clear slave status */
+        mov.l   r1,@(4,r0)              /* clear secondary status */
 
         mov     #0x80,r0
-        mov.l   _master_adapter,r1
+        mov.l   _pri_adapter,r1
         mov.b   r0,@r1                  /* set FM */
-        mov     #0x08,r0
+        mov     #0x08,r0                /* vbi enabled */
         mov.b   r0,@(1,r1)              /* set int enables */
-        mov     #0x20,r0
+        mov     #0x10,r0
         ldc     r0,sr                   /* allow ints */
 
         ! purge cache, turn it on, and run main()
-        mov.l   _master_cctl,r0
-        mov     #0x11,r1
+        mov.l   _pri_cctl,r0
+        mov     #0x11,r1                /* CP = cache purge, CE = cache enabled */
         mov.b   r1,@r0
-        mov.l   _master_go,r0
+
+        mov.l   _pri_go,r0
         jmp     @r0
         nop
 
         .align   2
-_master_int_clr:
+_pri_int_clr:
         .long   0x2000401E              /* one word passed last int clr reg */
-_master_stk:
-        .long   0x0603FF00              /* Cold Start SP */
-_master_sts:
+_pri_stk:
+        .long   pri_stack               /* Cold Start SP */
+_pri_sts:
         .long   0x20004020
-_master_ok:
+_pri_sh2_frtctl:
+        .long   0xfffffe10
+_pri_ok:
         .ascii  "M_OK"
-_master_adapter:
+_pri_adapter:
         .long   0x20004000
-_master_cctl:
+_pri_cctl:
         .long   0xFFFFFE92
-_master_go:
+_pri_go:
         .long   _main
 
 _bss_dst:
@@ -404,53 +428,98 @@ _bss_end:
         .long   __bss_end
 
 !-----------------------------------------------------------------------
-! Each section of code below has its own data table so that the code
-! can be extended without worrying about the offsets becoming too big.
-! This results in duplicate entries, but not so many that we care. :)
+! Primary exception handler
 !-----------------------------------------------------------------------
 
-!-----------------------------------------------------------------------
-! Master exception handler
-!-----------------------------------------------------------------------
-
-master_err:
+pri_err:
         rte
         nop
 
 !-----------------------------------------------------------------------
-! Master Level 1 IRQ handler
+! Primary IRQ handler
 !-----------------------------------------------------------------------
 
-master_lvl1:
-        rte
-        nop
-
-!-----------------------------------------------------------------------
-! Master Level 2/3 IRQ handler
-!-----------------------------------------------------------------------
-
-master_lvl2_3:
-        rte
-        nop
-
-!-----------------------------------------------------------------------
-! Master Level 4/5 IRQ handler
-!-----------------------------------------------------------------------
-
-master_lvl4_5:
-        rte
-        nop
-
-!-----------------------------------------------------------------------
-! Master V Blank IRQ handler
-!-----------------------------------------------------------------------
-
-master_vbi:
-        ! save registers
-        sts.l   pr,@-r15
+pri_irq:
         mov.l   r0,@-r15
         mov.l   r1,@-r15
         mov.l   r2,@-r15
+
+        stc     sr,r1                   /* SR holds IRQ level in I3-I0 */
+        mov.w   p_int_off,r2
+        ldc     r2,sr                   /* disallow ints */
+
+        mov.l   p_sys_frt_tocr,r2
+        mov     #0xE0,r0                /* TOCR = select OCRA, output 0 on compare match */
+        mov.b   r0,@r2
+        mov.b   @r2,r0
+
+        sts.l   pr,@-r15
+        mov     r1,r0
+        shlr2   r0
+        and     #0x3C,r0                /* int level to table offset */
+        mov.l   p_int_jtable,r1
+        mov.l   @(r0,r1),r0
+        jsr     @r0
+        nop
+
+        lds.l   @r15+,pr
+        mov.l   @r15+,r2
+        mov.l   @r15+,r1
+        mov.l   @r15+,r0
+        rte
+        nop
+
+        .align  2
+p_sys_frt_tocr:
+        .long   0xFFFFFE17
+p_int_jtable:
+        .long   _p_int_jtable
+p_int_off:
+        .word   0x00F0
+
+        .align  4
+_p_int_jtable:
+        .long   pri_no_irq              /* level 0 (ILL) */
+        .long   pri_no_irq              /* level 1 (FRT) */
+        .long   pri_wdt_irq             /* level 2 (WDT) */
+        .long   pri_wdt_irq             /* level 3 (WDT) */
+        .long   pri_dma_irq             /* level 4 (DMA) */
+        .long   pri_dma_irq             /* level 5 (DMA) */
+        .long   pri_pwm_irq             /* level 6 (PWM) */
+        .long   pri_pwm_irq             /* level 7 (PWM) */
+        .long   pri_cmd_irq             /* level 8 (CMD) */
+        .long   pri_cmd_irq             /* level 9 (CMD) */
+        .long   pri_h_irq               /* level 10 (HBI) */
+        .long   pri_h_irq               /* level 11 (HBI) */
+        .long   pri_v_irq               /* level 12 (VBI) */
+        .long   pri_v_irq               /* level 13 (VBI) */
+        .long   pri_vres_irq            /* level 14 (VRES) */
+        .long   pri_vres_irq            /* level 15 (VRES) */
+
+!-----------------------------------------------------------------------
+! Primary No IRQ handler
+!-----------------------------------------------------------------------
+
+pri_no_irq:
+        rts
+        nop
+
+!-----------------------------------------------------------------------
+! Primary V Blank IRQ handler
+!-----------------------------------------------------------------------
+
+pri_v_irq:
+        ! bump ints if necessary
+        mov.l   pvi_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
+
+        mov.l   pvi_mars_adapter,r1
+        mov.w   r0,@(0x16,r1)           /* clear V IRQ */
+
+        ! handle V IRQ - save registers
+        sts.l   pr,@-r15
         mov.l   r3,@-r15
         mov.l   r4,@-r15
         mov.l   r5,@-r15
@@ -459,14 +528,7 @@ master_vbi:
         sts.l   mach,@-r15
         sts.l   macl,@-r15
 
-        mov.l   mvi_mars_adapter,r1
-        mov.w   r0,@(0x16,r1)           /* clear V IRQ */
-        nop
-        nop
-        nop
-        nop
-
-        mov.l   mvbi_handler_ptr,r0
+        mov.l   pvbi_handler_ptr,r0
         jsr     @r0
         nop
 
@@ -478,134 +540,195 @@ master_vbi:
         mov.l   @r15+,r5
         mov.l   @r15+,r4
         mov.l   @r15+,r3
-        mov.l   @r15+,r2
-        mov.l   @r15+,r1
-        mov.l   @r15+,r0
         lds.l   @r15+,pr
-        rte
+        rts
         nop
 
         .align  2
-mvi_mars_adapter:
+pvi_mars_adapter:
         .long   0x20004000
-mvbi_handler_ptr:
-        .long   _master_vbi_handler
+pvbi_handler_ptr:
+        .long   _pri_vbi_handler
+pvi_sh2_frtctl:
+        .long   0xfffffe10
 
 !-----------------------------------------------------------------------
-! Master H Blank IRQ handler
+! Primary H Blank IRQ handler
 !-----------------------------------------------------------------------
 
-master_hbi:
-        mov.l   r0,@-r15
-        mov.l   r1,@-r15
+pri_h_irq:
+        ! bump ints if necessary
+        mov.l   phi_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
 
-        mov.l   mhi_mars_adapter,r1
+        mov.l   phi_mars_adapter,r1
         mov.w   r0,@(0x18,r1)           /* clear H IRQ */
         nop
         nop
         nop
         nop
 
-        ! handle H IRQ
+        ! handle H IRQ (remove nops if more than 8 cycles)
 
-        mov.l   @r15+,r1
-        mov.l   @r15+,r0
-        rte
+        rts
         nop
 
         .align  2
-mhi_mars_adapter:
+phi_mars_adapter:
         .long   0x20004000
+phi_sh2_frtctl:
+        .long   0xfffffe10
 
 !-----------------------------------------------------------------------
-! Master Command IRQ handler
+! Primary Command IRQ handler
 !-----------------------------------------------------------------------
 
-master_cmd:
-        mov.l   r0,@-r15
-        mov.l   r1,@-r15
+pri_cmd_irq:
+        ! bump ints if necessary
+        mov.l   pci_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
 
-        mov.l   mci_mars_adapter,r1
+        mov.l   pci_mars_adapter,r1
         mov.w   r0,@(0x1A,r1)           /* clear CMD IRQ */
         nop
         nop
         nop
         nop
 
-        ! handle CMD IRQ
+        ! handle CMD IRQ (remove nops if more than 8 cycles)
 
-        mov.l   @r15+,r1
-        mov.l   @r15+,r0
-        rte
+        rts
         nop
 
         .align  2
-mci_mars_adapter:
+pci_mars_adapter:
         .long   0x20004000
+pci_sh2_frtctl:
+        .long   0xfffffe10
 
 !-----------------------------------------------------------------------
-! Master PWM IRQ handler
+! Primary PWM IRQ handler
 !-----------------------------------------------------------------------
 
-master_pwm:
-        mov.l   r0,@-r15
-        mov.l   r1,@-r15
+pri_pwm_irq:
+        ! bump ints if necessary
+        mov.l   ppi_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
 
-        mov.l   mpi_mars_adapter,r1
+        mov.l   ppi_mars_adapter,r1
         mov.w   r0,@(0x1C,r1)           /* clear PWM IRQ */
         nop
         nop
         nop
         nop
 
-        ! handle PWM IRQ
+        ! handle PWM IRQ (remove nops if more than 8 cycles)
 
-        mov.l   @r15+,r1
-        mov.l   @r15+,r0
-        rte
+        rts
         nop
 
         .align  2
-mpi_mars_adapter:
+ppi_mars_adapter:
         .long   0x20004000
+ppi_sh2_frtctl:
+        .long   0xfffffe10
 
 !-----------------------------------------------------------------------
-! Master RESET IRQ handler
+! Primary DMA IRQ handler
 !-----------------------------------------------------------------------
 
-master_rst:
-        mov.l   mvri_mars_adapter,r1
+pri_dma_irq:
+        ! bump ints if necessary
+        mov.l   pdi_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
+
+        ! handle DMA IRQ
+
+        rts
+        nop
+
+        .align  2
+pdi_sh2_frtctl:
+        .long   0xfffffe10
+
+!-----------------------------------------------------------------------
+! Primary WDT IRQ handler
+!-----------------------------------------------------------------------
+
+pri_wdt_irq:
+        ! bump ints if necessary
+        mov.l   pwi_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
+
+        mov.l   pwi_sh2_wdtctl,r1
+        mov.b   @r1,r0                  /* read WTCSR */
+        tst     #0x80,r0                /* check OVF */
+        bt      1f                      /* no overflow */
+        mov.w   pwi_clr_ovf,r0
+        mov.w   r0,@r1                  /* clear OVF */
+
+        ! handle WDT overflow
+        mov.l   pwi_ovf_count,r1
+        mov.l   @r1,r0
+        add     #1,r0
+        mov.l   r0,@r1
+1:
+        rts
+        nop
+
+        .align  2
+pwi_sh2_frtctl:
+        .long   0xfffffe10
+pwi_sh2_wdtctl:
+        .long   0xfffffe80
+pwi_ovf_count:
+        .long   _mars_pwdt_ovf_count
+pwi_clr_ovf:
+        .word   0xa53e                  /* A5 = sel WTCSR, 3E = clr OVF, IT mode, timer enabled, clksel = Fs/4096 */
+
+!-----------------------------------------------------------------------
+! Primary RESET IRQ handler
+!-----------------------------------------------------------------------
+
+pri_vres_irq:
+        mov.l   pvri_mars_adapter,r1
         mov.w   r0,@(0x14,r1)           /* clear VRES IRQ */
-        nop
-        nop
-        nop
-        nop
 
         mov     #0x0F,r0
         shll2   r0
         shll2   r0
         ldc     r0,sr                   /* disallow ints */
 
-        mov.l   mvri_master_stk,r15
-        mov.l   mvri_master_vres,r0
+        mov.l   pvri_pri_stk,r15
+        mov.l   pvri_pri_vres,r0
         jmp     @r0
         nop
 
         .align  2
-mvri_mars_adapter:
+pvri_mars_adapter:
         .long   0x20004000
-mvri_master_stk:
-        .long   0x0603FF00              /* Cold Start SP */
-mvri_master_vres:
-        .long   master_reset
+pvri_pri_stk:
+        .long   pri_stack               /* Cold Start SP */
+pvri_pri_vres:
+        .long   pri_reset
 
 !-----------------------------------------------------------------------
-! The Slave SH2 starts here
+! The Secondary SH2 starts here
 !-----------------------------------------------------------------------
 
-slave_start:
+sec_start:
         ! clear interrupt flags
-        mov.l   _slave_int_clr,r1
+        mov.l   _sec_int_clr,r1
         mov.w   r0,@-r1                 /* PWM INT clear */
         mov.w   r0,@r1
         mov.w   r0,@-r1                 /* CMD INT clear */
@@ -617,10 +740,28 @@ slave_start:
         mov.w   r0,@-r1                 /* VRES INT clear */
         mov.w   r0,@r1
 
-        mov.l   _slave_stk,r15
-        ! wait for Master SH2 and 68000 to finish init
-        mov.l   _slave_sts,r0
-        mov.l   _slave_ok,r1
+        mov.l   _sec_sh2_frtctl,r1      /* Set Free Run Timer */
+        mov     #0x00,r0
+        mov.b   r0,@(0x00,r1)           /* TIER = ints disabled */
+        mov     #0xE2,r0
+        mov.b   r0,@(0x07,r1)           /* TOCR = select OCRA, output 1 on compare match */
+        mov     #0x00,r0
+        mov.b   r0,@(0x04,r1)           /* OCR_H */
+        mov     #0x01,r0
+        mov.b   r0,@(0x05,r1)           /* OCR_L => OCRA = 0x0001 */
+        mov     #0,r0
+        mov.b   r0,@(0x06,r1)           /* TCR = input captured on falling edge, CKS = Fs/8 */
+        mov     #1,r0
+        mov.b   r0,@(0x01,r1)           /* TCSR = clear FRC on match OCRA */
+        mov     #0x00,r0
+        mov.b   r0,@(0x03,r1)           /* FRC_L */
+        mov.b   r0,@(0x02,r1)           /* FRC_H => clear FRC */
+
+        mov.l   _sec_stk,r15
+
+        ! wait for Primary SH2 and 68000 to finish init
+        mov.l   _sec_sts,r0
+        mov.l   _sec_ok,r1
 1:
         mov.l   @r0,r2
         nop
@@ -628,83 +769,128 @@ slave_start:
         cmp/eq  r1,r2
         bt      1b
 
-        mov.l   _slave_adapter,r1
+        mov.l   _sec_adapter,r1
         mov     #0x00,r0
-        mov.b   r0,@(1,r1)              /* set int enables (different from master despite same address!) */
+        mov.b   r0,@(1,r1)              /* set int enables (different from primary despite same address!) */
         mov     #0x0F,r0
         shll2   r0
         shll2   r0
         ldc     r0,sr                   /* disallow ints */
 
-! purge cache, turn it on, and run slave()
-        mov.l   _slave_cctl,r0
-        mov     #0x11,r1
+! purge cache, turn it on, and run secondary()
+        mov.l   _sec_cctl,r0
+        mov     #0x11,r1                /* CP = cache purge, CE = cache enabled */
         mov.b   r1,@r0
-        mov.l   _slave_go,r0
+
+        mov.l   _sec_go,r0
         jmp     @r0
         nop
 
         .align   2
-_slave_int_clr:
+_sec_int_clr:
         .long   0x2000401E              /* one word passed last int clr reg */
-_slave_stk:
-        .long   0x06040000              /* Cold Start SP */
-_slave_sts:
+_sec_stk:
+        .long   sec_stack               /* Cold Start SP */
+_sec_sts:
         .long   0x20004024
-_slave_ok:
+_sec_sh2_frtctl:
+        .long   0xfffffe10
+_sec_ok:
         .ascii  "S_OK"
-_slave_adapter:
+_sec_adapter:
         .long   0x20004000
-_slave_cctl:
+_sec_cctl:
         .long   0xFFFFFE92
-_slave_go:
-        .long   _slave
+_sec_go:
+        .long   _secondary
 
 !-----------------------------------------------------------------------
-! Each section of code below has its own data table so that the code
-! can be extended without worrying about the offsets becoming too big.
-! This results in duplicate entries, but not so many that we care. :)
+! Secondary exception handler
 !-----------------------------------------------------------------------
 
-!-----------------------------------------------------------------------
-! Slave exception handler
-!-----------------------------------------------------------------------
-
-slave_err:
+sec_err:
         rte
         nop
 
 !-----------------------------------------------------------------------
-! Slave Level 1 IRQ handler
+! Secondary IRQ handler
 !-----------------------------------------------------------------------
 
-slave_lvl1:
-        rte
-        nop
-
-!-----------------------------------------------------------------------
-! Slave Level 2/3 IRQ handler
-!-----------------------------------------------------------------------
-
-slave_lvl2_3:
-        rte
-        nop
-
-!-----------------------------------------------------------------------
-! Slave Level 4/5 IRQ handler
-!-----------------------------------------------------------------------
-
-slave_lvl4_5:
-        rte
-        nop
-
-!-----------------------------------------------------------------------
-! Slave V Blank IRQ handler
-!-----------------------------------------------------------------------
-
-slave_vbi:
+sec_irq:
         mov.l   r0,@-r15
         mov.l   r1,@-r15
+        mov.l   r2,@-r15
+
+        stc     sr,r1                   /* SR holds IRQ level in I3-I0 */
+        mov.w   s_int_off,r2
+        ldc     r2,sr                   /* disallow ints */
+
+        mov.l   s_sys_frt_tocr,r2
+        mov     #0xE0,r0                /* TOCR = select OCRA, output 0 on compare match */
+        mov.b   r0,@r2
+        mov.b   @r2,r0
+
+        sts.l   pr,@-r15
+        mov     r1,r0
+        shlr2   r0
+        and     #0x3C,r0                /* int level to table offset */
+        mov.l   s_int_jtable,r1
+        mov.l   @(r0,r1),r0
+        jsr     @r0
+        nop
+
+        lds.l   @r15+,pr
+        mov.l   @r15+,r2
+        mov.l   @r15+,r1
+        mov.l   @r15+,r0
+        rte
+        nop
+
+        .align  2
+s_sys_frt_tocr:
+        .long   0xFFFFFE17
+s_int_jtable:
+        .long   _s_int_jtable
+s_int_off:
+        .word   0x00F0
+
+        .align  4
+_s_int_jtable:
+        .long   sec_no_irq              /* level 0 (ILL) */
+        .long   sec_no_irq              /* level 1 (FRT) */
+        .long   sec_wdt_irq             /* level 2 (WDT) */
+        .long   sec_wdt_irq             /* level 3 (WDT) */
+        .long   sec_dma_irq             /* level 4 (DMA) */
+        .long   sec_dma_irq             /* level 5 (DMA) */
+        .long   sec_pwm_irq             /* level 6 (PWM) */
+        .long   sec_pwm_irq             /* level 7 (PWM) */
+        .long   sec_cmd_irq             /* level 8 (CMD) */
+        .long   sec_cmd_irq             /* level 9 (CMD) */
+        .long   sec_h_irq               /* level 10 (HBI) */
+        .long   sec_h_irq               /* level 11 (HBI) */
+        .long   sec_v_irq               /* level 12 (VBI) */
+        .long   sec_v_irq               /* level 13 (VBI) */
+        .long   sec_vres_irq            /* level 14 (VRES) */
+        .long   sec_vres_irq            /* level 15 (VRES) */
+
+!-----------------------------------------------------------------------
+! Secondary No IRQ handler
+!-----------------------------------------------------------------------
+
+sec_no_irq:
+        rts
+        nop
+
+!-----------------------------------------------------------------------
+! Secondary V Blank IRQ handler
+!-----------------------------------------------------------------------
+
+sec_v_irq:
+        ! bump ints if necessary
+        mov.l   svi_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
 
         mov.l   svi_mars_adapter,r1
         mov.w   r0,@(0x16,r1)           /* clear V IRQ */
@@ -713,24 +899,27 @@ slave_vbi:
         nop
         nop
 
-        ! handle V IRQ
+        ! handle V IRQ (remove nops if more than 8 cycles)
 
-        mov.l   @r15+,r1
-        mov.l   @r15+,r0
-        rte
+        rts
         nop
 
         .align  2
 svi_mars_adapter:
         .long   0x20004000
+svi_sh2_frtctl:
+        .long   0xfffffe10
 
 !-----------------------------------------------------------------------
-! Slave H Blank IRQ handler
+! Secondary H Blank IRQ handler
 !-----------------------------------------------------------------------
 
-slave_hbi:
-        mov.l   r0,@-r15
-        mov.l   r1,@-r15
+sec_h_irq:
+        ! bump ints if necessary
+        mov.l   shi_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
 
         mov.l   shi_mars_adapter,r1
         mov.w   r0,@(0x18,r1)           /* clear H IRQ */
@@ -739,24 +928,27 @@ slave_hbi:
         nop
         nop
 
-        ! handle H IRQ
+        ! handle H IRQ (remove nops if more than 8 cycles)
 
-        mov.l   @r15+,r1
-        mov.l   @r15+,r0
-        rte
+        rts
         nop
 
         .align  2
 shi_mars_adapter:
         .long   0x20004000
+shi_sh2_frtctl:
+        .long   0xfffffe10
 
 !-----------------------------------------------------------------------
-! Slave Command IRQ handler
+! Secondary Command IRQ handler
 !-----------------------------------------------------------------------
 
-slave_cmd:
-        mov.l   r0,@-r15
-        mov.l   r1,@-r15
+sec_cmd_irq:
+        ! bump ints if necessary
+        mov.l   sci_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
 
         mov.l   sci_mars_adapter,r1
         mov.w   r0,@(0x1A,r1)           /* clear CMD IRQ */
@@ -765,24 +957,27 @@ slave_cmd:
         nop
         nop
 
-        ! handle CMD IRQ
+        ! handle CMD IRQ (remove nops if more than 8 cycles)
 
-        mov.l   @r15+,r1
-        mov.l   @r15+,r0
-        rte
+        rts
         nop
 
         .align  2
 sci_mars_adapter:
         .long   0x20004000
+sci_sh2_frtctl:
+        .long   0xfffffe10
 
 !-----------------------------------------------------------------------
-! Slave PWM IRQ handler
+! Secondary PWM IRQ handler
 !-----------------------------------------------------------------------
 
-slave_pwm:
-        mov.l   r0,@-r15
-        mov.l   r1,@-r15
+sec_pwm_irq:
+        ! bump ints if necessary
+        mov.l   spi_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
 
         mov.l   spi_mars_adapter,r1
         mov.w   r0,@(0x1C,r1)           /* clear PWM IRQ */
@@ -791,57 +986,30 @@ slave_pwm:
         nop
         nop
 
-        ! handle PWM IRQ
+        ! handle PWM IRQ (remove nops if more than 8 cycles)
 
-        mov.l   @r15+,r1
-        mov.l   @r15+,r0
-        rte
+        rts
         nop
 
         .align  2
 spi_mars_adapter:
         .long   0x20004000
+spi_sh2_frtctl:
+        .long   0xfffffe10
 
 !-----------------------------------------------------------------------
-! Slave RESET IRQ handler
+! Secondary DMA IRQ handler
 !-----------------------------------------------------------------------
 
-slave_rst:
-        mov.l   svri_mars_adapter,r1
-        mov.w   r0,@(0x14,r1)           /* clear VRES IRQ */
-        nop
-        nop
-        nop
-        nop
+sec_dma_irq:
+        ! bump ints if necessary
+        mov.l   sdi_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
 
-        mov     #0x0F,r0
-        shll2   r0
-        shll2   r0
-        ldc     r0,sr                   /* disallow ints */
-
-        mov.l   svri_slave_stk,r15
-        mov.l   svri_slave_vres,r0
-        jmp     @r0
-        nop
-
-        .align  2
-svri_mars_adapter:
-        .long   0x20004000
-svri_slave_stk:
-        .long   0x06040000              /* Cold Start SP */
-svri_slave_vres:
-        .long   slave_reset
-
-!-----------------------------------------------------------------------
-! Slave DMA 1 TE INT handler
-!-----------------------------------------------------------------------
-
-slave_dma1:
-        ! save registers
+        ! handle DMA IRQ
         sts.l   pr,@-r15
-        mov.l   r0,@-r15
-        mov.l   r1,@-r15
-        mov.l   r2,@-r15
         mov.l   r3,@-r15
         mov.l   r4,@-r15
         mov.l   r5,@-r15
@@ -850,7 +1018,7 @@ slave_dma1:
         sts.l   mach,@-r15
         sts.l   macl,@-r15
 
-        mov.l   sd1_handler,r0
+        mov.l   sdi_dma_handler,r0
         jsr     @r0
         nop
 
@@ -862,16 +1030,79 @@ slave_dma1:
         mov.l   @r15+,r5
         mov.l   @r15+,r4
         mov.l   @r15+,r3
-        mov.l   @r15+,r2
-        mov.l   @r15+,r1
-        mov.l   @r15+,r0
         lds.l   @r15+,pr
-        rte
+
+        rts
         nop
 
         .align  2
-sd1_handler:
-        .long   _slave_dma1_handler
+sdi_sh2_frtctl:
+        .long   0xfffffe10
+sdi_dma_handler:
+        .long   _sec_dma1_handler
+
+!-----------------------------------------------------------------------
+! Secondary WDT IRQ handler
+!-----------------------------------------------------------------------
+
+sec_wdt_irq:
+        ! bump ints if necessary
+        mov.l   swi_sh2_frtctl,r1
+        mov     #0xE2,r0                /* TOCR = select OCRA, output 1 on compare match */
+        mov.b   r0,@(0x07,r1)           /* write TOCR */
+        mov.b   @(0x07,r1),r0           /* read TOCR */
+
+        mov.l   swi_sh2_wdtctl,r1
+        mov.b   @r1,r0                  /* read WTCSR */
+        tst     #0x80,r0                /* check OVF */
+        bt      1f                      /* no overflow */
+        mov.w   swi_clr_ovf,r0
+        mov.w   r0,@r1                  /* clear OVF */
+
+        ! handle WDT overflow
+        mov.l   swi_ovf_count,r1
+        mov.l   @r1,r0
+        add     #1,r0
+        mov.l   r0,@r1
+1:
+        rts
+        nop
+
+        .align  2
+swi_sh2_frtctl:
+        .long   0xfffffe10
+swi_sh2_wdtctl:
+        .long   0xfffffe80
+swi_ovf_count:
+        .long   _mars_swdt_ovf_count
+swi_clr_ovf:
+        .word   0xa53e                  /* A5 = sel WTCSR, 3E = clr OVF, IT mode, timer enabled, clksel = Fs/4096 */
+
+!-----------------------------------------------------------------------
+! Secondary RESET IRQ handler
+!-----------------------------------------------------------------------
+
+sec_vres_irq:
+        mov.l   svri_mars_adapter,r1
+        mov.w   r0,@(0x14,r1)           /* clear VRES IRQ */
+
+        mov     #0x0F,r0
+        shll2   r0
+        shll2   r0
+        ldc     r0,sr                   /* disallow ints */
+
+        mov.l   svri_sec_stk,r15
+        mov.l   svri_sec_vres,r0
+        jmp     @r0
+        nop
+
+        .align  2
+svri_mars_adapter:
+        .long   0x20004000
+svri_sec_stk:
+        .long   sec_stack               /* Cold Start SP */
+svri_sec_vres:
+        .long   sec_reset
 
 !-----------------------------------------------------------------------
 ! Fast memcpy function - copies longs, runs from sdram for speed
@@ -936,17 +1167,25 @@ _SetSH2SR:
 
         .text
 
-master_reset:
-        ! do any master SH2 specific reset code here
+!-----------------------------------------------------------------------
+! Primary and Secondary RESET code
+!-----------------------------------------------------------------------
 
-        mov.l   slave_st,r0
-        mov.l   slave_ok,r1
+        .align  2
+
+        .text
+
+pri_reset:
+        ! do any primary SH2 specific reset code here
+
+        mov.l   sec_st,r0
+        mov.l   sec_ok,r1
 0:
         mov.l   @r0,r2
         nop
         nop
         cmp/eq  r1,r2
-        bf      0b                      /* wait for slave */
+        bf      0b                      /* wait for secondary sh2 */
 
         ! recopy rom data to sdram
         mov.l   rom_header,r1
@@ -966,41 +1205,41 @@ master_reset:
         dt      r4
         bf      1b
 
-        mov.l   master_st,r0
-        mov.l   master_ok,r1
+        mov.l   pri_st,r0
+        mov.l   pri_ok,r1
         mov.l   r1,@r0                  /* tell everyone reset complete */
 
-        mov.l   master_go,r0
+        mov.l   pri_go,r0
         jmp     @r0
         nop
 
-slave_reset:
-        ! do any slave SH2 specific reset code here
+sec_reset:
+        ! do any secondary SH2 specific reset code here
 
-        mov.l   slave_st,r0
-        mov.l   slave_ok,r1
-        mov.l   r1,@r0                  /* tell master to start reset */
+        mov.l   sec_st,r0
+        mov.l   sec_ok,r1
+        mov.l   r1,@r0                  /* tell primary to start reset */
 
-        mov.l   master_st,r0
-        mov.l   master_ok,r1
+        mov.l   pri_st,r0
+        mov.l   pri_ok,r1
 0:
         mov.l   @r0,r2
         nop
         nop
         cmp/eq  r1,r2
-        bf      0b                      /* wait for master to do the work */
+        bf      0b                      /* wait for primary to do the work */
 
-        mov.l   slave_go,r0
+        mov.l   sec_go,r0
         jmp     @r0
         nop
 
         .align  2
-master_st:
+pri_st:
         .long   0x20004020
-master_ok:
+pri_ok:
         .ascii  "M_OK"
-master_go:
-        .long   master_start
+pri_go:
+        .long   pri_start
 rom_header:
         .long   0x220003D4
 rom_start:
@@ -1008,13 +1247,15 @@ rom_start:
 sdram_start:
         .long   0x26000000
 
-slave_st:
+sec_st:
         .long   0x20004024
-slave_ok:
+sec_ok:
         .ascii  "S_OK"
-slave_go:
-        .long   slave_start
+sec_go:
+        .long   sec_start
 
+
+! this suppresses a warning in the linker about missing start()
 
         .global _start
 _start:
