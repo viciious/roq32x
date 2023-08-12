@@ -21,11 +21,71 @@ const int v0714C_ = 0.714136 * YUV_MUL2;
 const int u0344C_ = 0.344136 * YUV_MUL2;
 const int u1772C_ = 1.772000 * YUV_MUL2;
 
+static uint8_t uvfoo[32*32];
+static uint8_t rfoo[256*32];
+static uint8_t gfoo[256*32];
+static int8_t bfoo[256*32];
+
+int binit = 0;
+void init(void)
+{
+    int i, j;
+
+    if (binit)
+        return;
+    binit = 1;
+
+    for (j = 0; j < 32; j++) {
+        for (i = 0; i < 256; i++) {
+            int v = j << 3;
+            v -= 128;
+            int p = i + 1.140 * v;
+            if (p < 0) p = 0;
+            if (p > 255) p = 255;
+            rfoo[j*256+i] = (p >> 3) & 31;
+        }
+    }
+
+    for (i = 0; i < 32; i++) {
+        for (j = 0; j < 32; j++) {
+            int u = i<<3;
+            int v = j<<3;
+            int p = 0.344136 * u + 0.714136 * v;
+            if (p < 0) p = 0;
+            if (p > 255) p = 255;
+            uvfoo[i*32+j] = (p+7)>>3;
+        }
+    }
+
+    for (j = 0; j < 32; j++) {
+        for (i = 0; i < 256; i++) {
+            int uv = (j<<3);
+            int p = i - uv + 128;
+            if (p < 0) p = 0;
+            if (p > 255) p = 255;
+            gfoo[j*256+i] = (p >> 3) & 31;
+        }
+    }
+
+    for (j = 0; j < 32; j++) {
+        for (i = 0; i < 256; i++) {
+            int u = j << 3;
+            u -= 128;
+            int p = i + 1.772000 * u;
+            if (p < 0) p = 0;
+            if (p > 255) p = 255;
+            bfoo[j*256+i] = (p >> 3) & 31;
+        }
+    }
+}
+
 unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
     unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height, unsigned buf_incr, const short breakval)
 {
     unsigned x, y;
     unsigned char* pb = ppb;
+
+    init();
 
     for (y = start_y; y < height; y += 2)
     {
@@ -34,38 +94,28 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
         for (x = 0; x < width; x += 2)
         {
             unsigned i, j;
-            int u, v;
+            unsigned u, v;
 
-            u = pb[0] - 128;
-            v = pb[1] - 128;
+            u = pb[0];
+            v = pb[1];
 
-            int v1436_ = v1402C_ * v + YUV_NUDGE2;
-            int u1815_ = u1772C_ * u + YUV_NUDGE2;
+            u = u >> 3;
+            v = v >> 3;
+            unsigned uv = uvfoo[u*32+v];
 
-            int v731_ = v0714C_ * v;
-            int u352_ = u0344C_ * u;
-            int uv_ = u352_ + v731_ - YUV_NUDGE2;
+            uint8_t *r = &rfoo[u*256];
+            uint8_t *g = &gfoo[uv*256];
+            int8_t *b = &bfoo[v*256];
 
-            unsigned short* d = pbuf;
-            unsigned char* py = ppa;
+            int16_t *d = (int16_t *)pbuf;
+            unsigned char *py = ppa;
 
             for (i = 0; i < 2; i++)
             {
                 for (j = 0; j < 2; j++)
                 {
-                    unsigned t;
-                    unsigned ymul = py[j] << YUV_FIX2;
-
-                    t = ymul + v1436_;
-                    unsigned r = YUVClip8(t);
-
-                    t = ymul - uv_;
-                    unsigned g = YUVClip8(t);
-
-                    t = ymul + u1815_;
-                    unsigned b = YUVClip8(t);
-
-                    d[j] = YUVRGB555(r, g, b);
+                    unsigned y = py[j];
+                    d[j] = (r[y] << 10) | (g[y] << 5) | b[y];
                 }
 
                 d += 320;

@@ -9,13 +9,13 @@ LDSCRIPTSDIR = $(ROOTDIR)/ldscripts
 LIBPATH = -L$(ROOTDIR)/sh-elf/lib -L$(ROOTDIR)/sh-elf/lib/gcc/sh-elf/4.6.2 -L$(ROOTDIR)/sh-elf/sh-elf/lib
 INCPATH = -I. -I$(ROOTDIR)/sh-elf/include -I$(ROOTDIR)/sh-elf/sh-elf/include
 
-CCFLAGS = -m2 -mb -Wall -c -fomit-frame-pointer -fno-builtin -ffunction-sections -g
+CCFLAGS = -m2 -mb -Wall -c -fomit-frame-pointer -fno-builtin -ffunction-sections
 CCFLAGS += -D__32X__ -DMARS
 
 HWFLAGS := $(CCFLAGS)
 HWFLAGS += -O1 -fno-lto
 
-CCFLAGS += -O2 -funroll-loops -funsafe-loop-optimizations -lto
+CCFLAGS += -Os -funroll-loops -funsafe-loop-optimizations -lto
 CCFLAGS += -fno-align-loops -fno-align-functions -fno-align-jumps -fno-align-labels
 
 LDFLAGS = -T mars.ld -Wl,-Map=output.map -nostdlib -Wl,--gc-sections --specs=nosys.specs -flto
