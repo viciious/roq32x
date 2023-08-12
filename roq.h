@@ -16,7 +16,7 @@
 
 #define RoQ_SAMPLE_RATE    22050
 
-#define RoQ_MAX_WIDTH	256
+#define RoQ_MAX_WIDTH	320
 #define RoQ_MAX_HEIGHT	192
 
 #ifdef __32X__
@@ -26,7 +26,11 @@
 #endif
 
 typedef struct {
-	unsigned char y0, y1, y2, y3, u, v;
+	union {
+		short y02[2];
+		char y0123[4];
+	};
+	short uv;
 } roq_cell;
 
 typedef struct {
@@ -49,10 +53,10 @@ typedef struct {
 	int buf_size;
 	roq_cell cells[256];
 	roq_qcell qcells[256];
-	short snd_sqr_arr[260];
+	short snd_sqr_arr_[260];
+	short *snd_sqr_arr;
 	long roq_start;
 	unsigned width, height, frame_num;
-	unsigned halfwidth, halfheight;
 	unsigned display_height;
 	unsigned char *y[2], *uv[2];
 	unsigned char y256[2][RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT] __attribute__((aligned(16)));
@@ -63,14 +67,14 @@ typedef struct {
 	unsigned chunk_arg0, chunk_arg1;
 	unsigned vqflg;
 	unsigned vqflg_pos;
-	unsigned aud_chunk_size;
+	unsigned framerate;
 } roq_info;
 
 /* -------------------------------------------------------------------------- */
 
 void roq_init(void);
 void roq_cleanup(void);
-roq_info *roq_open(roq_file *fp, int max_height, roq_bufferdata_t buf);
+roq_info *roq_open(roq_file *fp, int max_height, roq_bufferdata_t buf, int refresh_rate);
 void roq_close(roq_info *ri);
 int roq_read_video(roq_info *ri, char loop);
 int roq_read_audio(roq_info *ri, char loop);

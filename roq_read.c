@@ -31,7 +31,7 @@
 /* -------------------------------------------------------------------------- */
 
 static void roq_bufferdata_dummy(roq_file* fp, int readhead) RoQ_ATTR_SDRAM;
-static void roq_on_first_frame(roq_info* ri) RoQ_ATTR_SDRAM;
+static void roq_on_first_frame(roq_info* ri);
 
 static void roq_bufferdata_dummy(roq_file* fp, int readhead)
 {
@@ -41,6 +41,11 @@ static void roq_bufferdata_dummy(roq_file* fp, int readhead)
 static inline int roq_fgetc(roq_file* fp) {
 	fp->pos++;
 	return *fp->rover++;
+}
+
+static inline int roq_fgetsc(roq_file* fp) {
+	fp->pos++;
+	return *(int8_t *)fp->rover++;
 }
 
 static inline int roq_ftell(roq_file* fp) {
@@ -92,27 +97,30 @@ static inline unsigned int get_long(roq_file* fp)
 
 
 /* -------------------------------------------------------------------------- */
-static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height)
+static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height, int refresh_rate)
 {
 	int i;
-	unsigned int head1, head2, head3;
+	unsigned int head1, head2;
+	unsigned framerate;
 	unsigned chunk_id, chunk_size;
 
 	head1 = get_word(fp);
 	head2 = get_long(fp);
-	head3 = get_word(fp);
-	if (head1 != 0x1084 && head2 != 0xffffffff && head3 != 0x1e)
+	framerate = get_word(fp);
+	if (head1 != 0x1084 && head2 != 0xffffffff)
 	{
 		//printf("Not an RoQ file.\n");
 		return 1;
 	}
 
+	ri->snd_sqr_arr = ri->snd_sqr_arr_ + 128;
 	for (i = 0; i < 128; i++)
 	{
-		ri->snd_sqr_arr[i] = i * i;
-		ri->snd_sqr_arr[i + 128] = -(i * i);
+		ri->snd_sqr_arr[(int8_t)i] = i * i;
+		ri->snd_sqr_arr[(int8_t)(i + 128)] = -(i * i);
 	}
 
+	ri->framerate = (refresh_rate * 0x10000 / framerate) >> 16;
 	ri->roq_start = roq_ftell(fp);
 	while (!roq_feof(fp))
 	{
@@ -129,8 +137,6 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height)
 
 			ri->width = get_word(fp);
 			ri->height = get_word(fp);
-			ri->halfwidth = ri->width >> 1;
-			ri->halfheight = ri->height >> 1;
 			ri->display_height = ri->height;
 			if (ri->display_height > max_height) ri->display_height = max_height;
 			get_word(fp);
@@ -153,108 +159,43 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height)
 }
 
 /* -------------------------------------------------------------------------- */
-
-static inline void apply_vector_2x2(roq_info* ri, unsigned x, unsigned y, roq_cell* cell)
-{
-	unsigned char* yptr, * uvptr;
-	unsigned hw = y * ri->width;
-
-	yptr = ri->y[0] + hw + x;
-	*yptr++ = cell->y0;
-	*yptr++ = cell->y1;
-
-	yptr += (ri->width - 2);
-	*yptr++ = cell->y2;
-	*yptr++ = cell->y3;
-
-	uvptr = &ri->uv[0][(hw >> 1) + x];
-	*uvptr++ = cell->u;
-	*uvptr++ = cell->v;
-}
-
-
-/* -------------------------------------------------------------------------- */
-static inline void apply_vector_4x4(roq_info* ri, unsigned x, unsigned y, roq_cell* cell)
-{
-	unsigned row_inc, c_row_inc;
-	unsigned short y0, y1, * yptr;
-	unsigned short uv, * uvptr;
-	unsigned yw = y * ri->width;
-
-	yptr = (unsigned short*)(ri->y[0] + yw + x);
-	uvptr = (unsigned short*)ri->uv[0] + (yw >> 2) + (x >> 1);
-
-	row_inc = (ri->width - 4) >> 1;
-	c_row_inc = ri->halfwidth - 2;
-
-	y0 = cell->y0;
-	y0 |= (y0 << 8);
-
-	uv = cell->u;
-	uv = (uv << 8) | (cell->v);
-
-	*yptr++ = y0, * uvptr++ = uv;
-
-	y1 = cell->y1;
-	y1 |= (y1 << 8);
-	*yptr++ = y1, * uvptr++ = uv;
-
-	yptr += row_inc;
-
-	*yptr++ = y0;
-	*yptr++ = y1;
-
-	yptr += row_inc, uvptr += c_row_inc;
-
-	y0 = cell->y2;
-	y0 |= (y0 << 8);
-	*yptr++ = y0, * uvptr++ = uv;
-
-	y1 = cell->y3;
-	y1 |= (y1 << 8);
-	*yptr++ = y1, * uvptr++ = uv;
-
-	yptr += row_inc;
-
-	*yptr++ = y0;
-	*yptr++ = y1;
-}
-
-/* -------------------------------------------------------------------------- */
 static inline void apply_motion_4x4(roq_info* ri, unsigned x, unsigned y, unsigned char mv, char mean_x, char mean_y)
 {
 	int i, mx, my;
-	unsigned short* pa;
-	unsigned char* pb;
-	unsigned short* pc, * pd;
-	unsigned w, hw;
-	unsigned x2, y2;
-	unsigned mx2, my2;
+	short* pa;
+	unsigned char *pb;
+	short* pc, * pd;
+	unsigned w = ri->width, hw = w /2;
 
 	mx = x + 8 - (mv / 16) - mean_x;
 	my = y + 8 - (mv & 0xf) - mean_y;
 
-	w = ri->width;
-	hw = ri->halfwidth;
+	pa = (short*)(ri->y[0] + y * w + x);
+	pb = ri->y[1] + my * w + mx;
 
-	y2 = y * hw;
-	x2 = (x >> 1);
-
-	mx2 = (mx + 1) / 2;
-	my2 = (my / 2) * hw;
-
-	pa = (unsigned short*)ri->y[0] + y2 + x2;
-	pb = ri->y[1] + (my * w) + mx;
-	for (i = 0; i < 4; i++)
+	if (mx & 1)
 	{
-		*pa = (pb[0] << 8) | pb[1];
-		*(pa + 1) = (pb[2] << 8) | pb[3];
-		pa += hw;
-		pb += w;
+		for (i = 0; i < 4; i++)
+		{
+			*pa = (pb[0] << 8) | pb[1];
+			*(pa + 1) = (pb[2] << 8) | pb[3];
+			pa = (short *)((char *)pa + w);
+			pb = pb + w;
+		}
+	}
+	else 
+	{
+		for (i = 0; i < 4; i++)
+		{
+			*pa = *((short *)pb);
+			*(pa + 1) = *((short *)pb + 1);
+			pa = (short *)((char *)pa + w);
+			pb = pb + w;
+		}
 	}
 
-	pc = (unsigned short*)ri->uv[0] + (y2 >> 1) + x2;
-	pd = (unsigned short*)ri->uv[1] + my2 + mx2;
+	pc = (short*)(ri->uv[0] + y * hw + x);
+	pd = (short*)ri->uv[1] + (my / 2) * hw + (mx + 1) / 2;
 	for (i = 0; i < 2; i++)
 	{
 		*pc = *pd;
@@ -269,39 +210,42 @@ static inline void apply_motion_4x4(roq_info* ri, unsigned x, unsigned y, unsign
 static inline void apply_motion_8x8(roq_info* ri, unsigned x, unsigned y, unsigned char mv, char mean_x, char mean_y)
 {
 	int mx, my, i;
-	unsigned short* pa;
-	unsigned char* pb;
-	unsigned short* pc, * pd;
-	unsigned w, hw;
-	unsigned x2, y2;
-	unsigned mx2, my2;
+	short* pa;
+	
+	short* pc, * pd;
+	unsigned w = ri->width, hw = w / 2;
 
 	mx = x + 8 - (mv / 16) - mean_x;
 	my = y + 8 - (mv & 0xf) - mean_y;
 
-	w = ri->width;
-	hw = ri->halfwidth;
+	pa = (short*)(ri->y[0] + y * w + x);
 
-	y2 = y * hw;
-	x2 = (x >> 1);
-
-	mx2 = (mx + 1) / 2;
-	my2 = (my / 2) * (hw);
-
-	pa = (unsigned short*)ri->y[0] + y2 + x2;
-	pb = ri->y[1] + (my * w) + mx;
-	for (i = 0; i < 8; i++)
-	{
-		*pa = (pb[0] << 8) | pb[1];
-		*(pa + 1) = (pb[2] << 8) | pb[3];
-		*(pa + 2) = (pb[4] << 8) | pb[5];
-		*(pa + 3) = (pb[6] << 8) | pb[7];
-		pa += hw;
-		pb += w;
+	if (mx & 1) {
+		unsigned char *pb = ri->y[1] + (my * w) + mx;
+		for (i = 0; i < 8; i++)
+		{
+			*pa = (pb[0] << 8) | pb[1];
+			*(pa + 1) = (pb[2] << 8) | pb[3];
+			*(pa + 2) = (pb[4] << 8) | pb[5];
+			*(pa + 3) = (pb[6] << 8) | pb[7];
+			pa = (short *)((char *)pa + w);
+			pb = pb + w;
+		}
+	} else {
+		short *pb = (short*)(ri->y[1] + (my * w) + mx);
+		for (i = 0; i < 8; i++)
+		{
+			*pa = *(pb);
+			*(pa + 1) = *(pb + 1);
+			*(pa + 2) = *(pb + 2);
+			*(pa + 3) = *(pb + 3);
+			pa = (short *)((char *)pa + w);
+			pb = (short *)((char *)pb + w);
+		}
 	}
 
-	pc = (unsigned short*)ri->uv[0] + (y2 >> 1) + x2;
-	pd = (unsigned short*)ri->uv[1] + my2 + mx2;
+	pc = (short*)((char *)ri->uv[0] + y * hw + x);
+	pd = (short*)ri->uv[1] + (my / 2) * hw + (mx + 1) / 2;
 	for (i = 0; i < 4; i++)
 	{
 		*pc = *pd;
@@ -323,11 +267,12 @@ static void roq_on_first_frame(roq_info* ri)
 		ri->uv[i] = ri->uv256[i];
 
 		{
+			memset(ri->y[i], 0, RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT);
+			memset(ri->uv[i], 0, RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT / 4 * 2);
+
+#if 0
 			int j;
 			int* pi;
-
-			//memset(ri->y[i], 0, RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT);
-			//memset(ri->uv[i], 0, RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT / 4 * 2);
 
 			pi = (int*)ri->y[i];
 			for (j = 0; j < RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT / 4; j++) {
@@ -338,15 +283,15 @@ static void roq_on_first_frame(roq_info* ri)
 			for (j = 0; j < RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT / 4 * 2 / 4; j++) {
 				pi[j] = 0;
 			}
+#endif
 		}
 	}
 
 	ri->frame_num = 0;
-	ri->aud_chunk_size = 0;
 }
 
 /* -------------------------------------------------------------------------- */
-roq_info* roq_open(roq_file* fp, int max_height, roq_bufferdata_t buf)
+roq_info* roq_open(roq_file* fp, int max_height, roq_bufferdata_t buf, int refresh_rate)
 {
 	roq_info* ri;
 	static roq_info ris;
@@ -356,7 +301,7 @@ roq_info* roq_open(roq_file* fp, int max_height, roq_bufferdata_t buf)
 	ri->buffer = buf ? buf : roq_bufferdata_dummy;
 
 	if (max_height > RoQ_MAX_HEIGHT) max_height = RoQ_MAX_HEIGHT;
-	if (roq_parse_file(fp, ri, max_height)) return NULL;
+	if (roq_parse_file(fp, ri, max_height, refresh_rate)) return NULL;
 	roq_on_first_frame(ri);
 
 	return ri;
@@ -365,16 +310,16 @@ roq_info* roq_open(roq_file* fp, int max_height, roq_bufferdata_t buf)
 
 /* -------------------------------------------------------------------------- */
 
-typedef int (*roq_applier)(roq_info* ri, unsigned x, unsigned y, unsigned char* buf);
+typedef int (*roq_applier)(roq_info* ri, unsigned x, unsigned y, char* buf);
 
-static int roq_apply_mot(roq_info* ri, unsigned x, unsigned y, unsigned char* buf) RoQ_ATTR_SDRAM;
-static int roq_apply_fcc(roq_info* ri, unsigned x, unsigned y, unsigned char* buf) RoQ_ATTR_SDRAM;
-static int roq_apply_sld(roq_info* ri, unsigned x, unsigned y, unsigned char* buf) RoQ_ATTR_SDRAM;
-static int roq_apply_cc(roq_info* ri, unsigned x, unsigned y, unsigned char* buf) RoQ_ATTR_SDRAM;
+static int roq_apply_mot(roq_info* ri, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
+static int roq_apply_fcc(roq_info* ri, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
+static int roq_apply_sld(roq_info* ri, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
+static int roq_apply_cc(roq_info* ri, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
 
-static int roq_apply_fcc2(roq_info* ri, unsigned x, unsigned y, unsigned char* buf) RoQ_ATTR_SDRAM;
-static int roq_apply_sld2(roq_info* ri, unsigned x, unsigned y, unsigned char* buf) RoQ_ATTR_SDRAM;
-static int roq_apply_cc2(roq_info* ri, unsigned x, unsigned y, unsigned char* buf) RoQ_ATTR_SDRAM;
+static int roq_apply_fcc2(roq_info* ri, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
+static int roq_apply_sld2(roq_info* ri, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
+static int roq_apply_cc2(roq_info* ri, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
 
 roq_applier appliers[] = { &roq_apply_mot, &roq_apply_fcc, &roq_apply_sld, &roq_apply_cc };
 roq_applier appliers2[] = { &roq_apply_mot, &roq_apply_fcc2, &roq_apply_sld2, &roq_apply_cc2 };
@@ -383,10 +328,29 @@ void roq_close(roq_info* ri)
 {
 }
 
-static inline int roq_read_vqid(roq_info* ri, unsigned char* buf, unsigned* vqid)
+static inline int roq_read_vqid(roq_info* ri, unsigned char* buf, unsigned* pvqid)
 {
 	int adv = 0;
+	unsigned vqid;
 
+#ifdef MARS
+	if (ri->vqflg_pos == 0)
+	{	
+		ri->vqflg = ((buf[1] << 8) | buf[0]) << 16;
+		ri->vqflg_pos = 8;
+		adv = 2;
+	}
+
+	__asm volatile(
+		"shll %1\n\t"
+		"movt r0\n\t"
+		"shll %1\n\t"
+		"movt %0\n\t"
+		"add r0, r0\n\t"
+		"add r0, %0\n\t"
+		: "=r"(vqid), "+r"(ri->vqflg) : : "r0"
+	);
+#else
 	if (ri->vqflg_pos == 0)
 	{
 		unsigned shf;
@@ -402,36 +366,62 @@ static inline int roq_read_vqid(roq_info* ri, unsigned char* buf, unsigned* vqid
 		adv = 2;
 	}
 
-	*vqid = ri->vqflg & 0x3;
+	vqid = ri->vqflg & 0x3;
 	ri->vqflg >>= 2;
+#endif
+
+	*pvqid = vqid;
 	ri->vqflg_pos--;
 
 	return adv;
 }
 
-static int roq_apply_mot(roq_info* ri, unsigned x, unsigned y, unsigned char* buf)
+static int roq_apply_mot(roq_info* ri, unsigned x, unsigned y, char* buf)
 {
 	return 0;
 }
 
-static int roq_apply_fcc(roq_info* ri, unsigned x, unsigned y, unsigned char* buf)
+static int roq_apply_fcc(roq_info* ri, unsigned x, unsigned y, char* buf)
 {
 	apply_motion_8x8(ri, x, y, buf[0], ri->chunk_arg1, ri->chunk_arg0);
 	return 1;
 }
 
-static int roq_apply_sld(roq_info* ri, unsigned x, unsigned y, unsigned char* buf)
+static int roq_apply_sld(roq_info* ri, unsigned x, unsigned y, char* buf)
 {
-	roq_qcell* qcell;
-	qcell = ri->qcells + buf[0];
-	apply_vector_4x4(ri, x, y, ri->cells + qcell->idx[0]);
-	apply_vector_4x4(ri, x + 4, y, ri->cells + qcell->idx[1]);
-	apply_vector_4x4(ri, x, y + 4, ri->cells + qcell->idx[2]);
-	apply_vector_4x4(ri, x + 4, y + 4, ri->cells + qcell->idx[3]);
+	int i, j;
+	int *yptr;
+	int * uvptr;
+	unsigned width = ri->width;
+	roq_qcell *qcell = ri->qcells + (uint8_t)buf[0];
+
+	yptr = (int*)(ri->y[0] + y*width + x);
+	uvptr = (int*)(ri->uv[0] + y*width/2 + x);
+
+	for (i = 0; i < 4; i += 2)
+	{
+		roq_cell *cell0 = ri->cells + qcell->idx[i];
+		roq_cell *cell1 = ri->cells + qcell->idx[i+1];
+
+		for (j = 0; j < 4; j += 2)
+		{
+			int y0 = ((uint8_t)cell0->y0123[j] << 8) | (uint8_t)cell0->y0123[j];
+			y0 = (y0 << 16) | ((uint8_t)cell0->y0123[j+1] << 8) | (uint8_t)cell0->y0123[j+1];
+			int y1 = ((uint8_t)cell1->y0123[j] << 8) | (uint8_t)cell1->y0123[j];
+			y1 = (y1 << 16) | ((uint8_t)cell1->y0123[j+1] << 8) | (uint8_t)cell1->y0123[j+1];
+			int uv0 = (cell0->uv << 16) | (uint16_t)cell0->uv;
+			int uv1 = (cell1->uv << 16) | (uint16_t)cell1->uv;
+
+			yptr[0] = y0, yptr[1] = y1, yptr = (void*)((char *)yptr + width);
+			yptr[0] = y1, yptr[1] = y1, yptr = (void*)((char *)yptr + width);
+			uvptr[0] = uv0, uvptr[1] = uv1, uvptr = (void*)((char *)uvptr + width);
+		}
+	}
+
 	return 1;
 }
 
-static int roq_apply_cc(roq_info* ri, unsigned xp, unsigned yp, unsigned char* buf)
+static int roq_apply_cc(roq_info* ri, unsigned xp, unsigned yp, char* buf)
 {
 	int k;
 	unsigned x, y;
@@ -445,7 +435,7 @@ static int roq_apply_cc(roq_info* ri, unsigned xp, unsigned yp, unsigned char* b
 		if (k & 0x01) x += 4;
 		if (k & 0x02) y += 4;
 
-		bpos += roq_read_vqid(ri, &buf[bpos], &vqid);
+		bpos += roq_read_vqid(ri, (uint8_t *)&buf[bpos], &vqid);
 
 		bpos += appliers2[vqid](ri, x, y, &buf[bpos]);
 	}
@@ -453,36 +443,48 @@ static int roq_apply_cc(roq_info* ri, unsigned xp, unsigned yp, unsigned char* b
 	return bpos;
 }
 
-static int roq_apply_fcc2(roq_info* ri, unsigned x, unsigned y, unsigned char* buf)
+static int roq_apply_fcc2(roq_info* ri, unsigned x, unsigned y, char* buf)
 {
 	apply_motion_4x4(ri, x, y, buf[0], ri->chunk_arg1, ri->chunk_arg0);
 	return 1;
 }
 
-static int roq_apply_sld2(roq_info* ri, unsigned x, unsigned y, unsigned char* buf)
+static int roq_apply_sld2(roq_info* ri, unsigned x, unsigned y, char* buf)
 {
-	roq_qcell* qcell;
-	qcell = ri->qcells + buf[0];
-	apply_vector_2x2(ri, x, y, ri->cells + qcell->idx[0]);
-	apply_vector_2x2(ri, x + 2, y, ri->cells + qcell->idx[1]);
-	apply_vector_2x2(ri, x, y + 2, ri->cells + qcell->idx[2]);
-	apply_vector_2x2(ri, x + 2, y + 2, ri->cells + qcell->idx[3]);
+	roq_apply_cc2(ri, x, y, (char *)ri->qcells[(uint8_t)buf[0]].idx);
 	return 1;
 }
 
-static int roq_apply_cc2(roq_info* ri, unsigned x, unsigned y, unsigned char* buf)
+static int roq_apply_cc2(roq_info* ri, unsigned x, unsigned y, char* buf)
 {
-	apply_vector_2x2(ri, x, y, ri->cells + buf[0]);
-	apply_vector_2x2(ri, x + 2, y, ri->cells + buf[1]);
-	apply_vector_2x2(ri, x, y + 2, ri->cells + buf[2]);
-	apply_vector_2x2(ri, x + 2, y + 2, ri->cells + buf[3]);
+	int i;
+	int *yptr;
+	int *uvptr;
+	unsigned width = ri->width;
+
+	yptr = (int *)((char *)ri->y[0] + y*width + x);
+	uvptr = (int*)(ri->uv[0] + y*width/2 + x);
+
+	for (i = 0; i < 4; i += 2)
+	{
+		roq_cell *cell0 = ri->cells + (uint8_t)buf[i];
+		roq_cell *cell1 = ri->cells + (uint8_t)buf[i+1];
+		int y0 = (cell0->y02[0] << 16) | (uint16_t)cell1->y02[0];
+		int y1 = (cell0->y02[1] << 16) | (uint16_t)cell1->y02[1];
+		int uv = (cell0->uv << 16) | (uint16_t)cell1->uv;
+
+		yptr[0] = y0, yptr = (void*)((char *)yptr + width);
+		yptr[0] = y1, yptr = (void*)((char *)yptr + width);
+		uvptr[0] = uv, uvptr = (void*)((char *)uvptr + width);
+	}
+
 	return 4;
 }
 
 /* -------------------------------------------------------------------------- */
 int roq_read_frame(roq_info* ri, char loop)
 {
-	int i, j, nv1, nv2;
+	int i, nv1, nv2;
 	roq_file* fp = ri->fp;
 	unsigned int chunk_id = 0, chunk_arg0 = 0, chunk_arg1 = 0;
 	unsigned long chunk_size = 0;
@@ -517,43 +519,37 @@ loop_start:
 			if ((nv1 = chunk_arg1) == 0) nv1 = 256;
 			if ((nv2 = chunk_arg0) == 0 && nv1 * 6 < chunk_size) nv2 = 256;
 
-			for (i = 0; i < nv1; i++)
-			{
-				ri->cells[i].y0 = roq_fgetc(fp);
-				ri->cells[i].y1 = roq_fgetc(fp);
-				ri->cells[i].y2 = roq_fgetc(fp);
-				ri->cells[i].y3 = roq_fgetc(fp);
-				ri->cells[i].u = roq_fgetc(fp);
-				ri->cells[i].v = roq_fgetc(fp);
-			}
+			memcpy(ri->cells, fp->rover, nv1*6);
+			fp->rover += nv1*6;
 
-			for (i = 0; i < nv2; i++)
-			{
-				for (j = 0; j < 4; j++)
-					ri->qcells[i].idx[j] = roq_fgetc(fp);
-			}
+			memcpy(ri->qcells, fp->rover, nv2*4);
+			fp->rover += nv2*4;
 			break;
 		case RoQ_SOUND_MONO:
 		{
 			int j = 0;
 			uint16_t* p;
-			int16_t snd_left;
+			int snd_left;
+			int total_samples = chunk_size;
 
-			snd_left = (chunk_arg1 << 8) | chunk_arg0;
+			snd_left = (int16_t)((chunk_arg1 << 8) | chunk_arg0);
 
-			for (i = 0; i < chunk_size; )
+			for (i = 0; i < total_samples; )
 			{
-				int num_samples = chunk_size - i;
+				int num_samples = total_samples - i;
 				if (num_samples > 256)
 					num_samples = 256;
 
 				p = snddma_get_buf_mono(num_samples);
 				if (!p)
-					return -1;
+					break;
 
 				for (j = 0; j < num_samples; j++)
 				{
-					snd_left += ri->snd_sqr_arr[roq_fgetc(fp)];
+					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
+					if (snd_left < -32768) snd_left = -32768;
+					else if (snd_left >  32767) snd_left =  32767;
+
 					*p++ = s16pcm_to_u16pwm(snd_left);
 				}
 
@@ -562,33 +558,38 @@ loop_start:
 				i += num_samples;
 			}
 		}
-		ri->aud_chunk_size = chunk_size;
 			break;
 
 		case RoQ_SOUND_STEREO:
 		{
 			int j = 0;
 			uint16_t *p;
-			int16_t snd_left, snd_right;
+			int snd_left, snd_right;
+			int total_samples = chunk_size / 2;
 
-			snd_left = chunk_arg0 << 8;
-			snd_right = chunk_arg1;
+			snd_left = (int16_t)(chunk_arg0 << 8);
+			snd_right = (int16_t)(chunk_arg1 << 8);
 
-			chunk_size /= 2;
-			for (i = 0; i < chunk_size; )
+			for (i = 0; i < total_samples; )
 			{
-				int num_samples = chunk_size - i;
+				int num_samples = total_samples - i;
 				if (num_samples > 256)
 					num_samples = 256;
 
 				p = snddma_get_buf_stereo(num_samples);
 				if (!p)
-					return -1;
+					break;
 
 				for (j = 0; j < num_samples; j++)
 				{
-					snd_left += ri->snd_sqr_arr[roq_fgetc(fp)];
-					snd_right += ri->snd_sqr_arr[roq_fgetc(fp)];
+					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
+					if (snd_left < -32768) snd_left = -32768;
+					else if (snd_left >  32767) snd_left =  32767;
+
+					snd_right += ri->snd_sqr_arr[roq_fgetsc(fp)];
+					if (snd_right < -32768) snd_right = -32768;
+					else if (snd_right >  32767) snd_right =  32767;
+
 					*p++ = s16pcm_to_u16pwm(snd_left);
 					*p++ = s16pcm_to_u16pwm(snd_right);
 				}
@@ -598,7 +599,6 @@ loop_start:
 				i += num_samples;
 			}
 		}
-		ri->aud_chunk_size = chunk_size;
 		break;
 		}
 
@@ -642,7 +642,7 @@ loop_start:
 			for (xp = xpos; xp < xpos + 16; xp += 8)
 			{
 				bpos += roq_read_vqid(ri, &buf[bpos], &vqid);
-				bpos += appliers[vqid](ri, xp, yp, &buf[bpos]);
+				bpos += appliers[vqid](ri, xp, yp, (char *)&buf[bpos]);
 				if (bpos >= chunk_size)
 					break;
 			}
@@ -660,9 +660,9 @@ loop_start:
 
 	if (ri->frame_num == 1)
 	{
-		//memcpy(ri->y[1], ri->y[0], ri->width * ri->height);
-		//memcpy(ri->uv[1], ri->uv[0], (ri->width * ri->height) / 4 * 2);
-
+		memcpy(ri->y[1], ri->y[0], ri->width * ri->height);
+		memcpy(ri->uv[1], ri->uv[0], (ri->width * ri->height) / 4 * 2);
+/*
 		{
 			unsigned j, l;
 			int* di, *si;
@@ -681,6 +681,7 @@ loop_start:
 				di[j] = si[j];
 			}
 		}
+*/
 	}
 	else
 	{

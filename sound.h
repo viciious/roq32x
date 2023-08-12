@@ -1,8 +1,8 @@
 #include <stdint.h>
 
-#define SAMPLE_MIN         2
-#define SAMPLE_CENTER    517
+#define SAMPLE_MIN      2
 #define SAMPLE_MAX      1032
+#define SAMPLE_CENTER   (SAMPLE_MAX-SAMPLE_MIN)/2
 
 #ifdef __32X__
 #define SND_ATTR_SDRAM  __attribute__((section(".data"), aligned(16)))
@@ -15,9 +15,8 @@ uint16_t* snddma_get_buf(int channels, int num_samples) SND_ATTR_SDRAM;
 uint16_t* snddma_get_buf_mono(int num_samples) SND_ATTR_SDRAM;
 uint16_t* snddma_get_buf_stereo(int num_samples) SND_ATTR_SDRAM;
 
-static inline uint16_t s16pcm_to_u16pwm(int16_t s) {
-    s = (s >> 5) + SAMPLE_CENTER;
-    return (s < 0) ? SAMPLE_MIN : (s > SAMPLE_MAX) ? SAMPLE_MAX : s;
+static inline uint16_t s16pcm_to_u16pwm(int s) {
+    return SAMPLE_MIN + ((unsigned)(s+32768) >> 6);
 }
 
 void snddma_sec_init(int sample_rate);

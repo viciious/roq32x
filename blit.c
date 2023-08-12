@@ -7,12 +7,12 @@
 #define GMASK (((1<<10)-1) & ~RMASK)
 #define BMASK (((1<<15)-1) & ~(RMASK|GMASK))
 
-#define YUVClip8(v) (__builtin_expect(v & ~YUV_MASK2, 0) ? (__builtin_expect((int)v < 0, 0) ? 0 : YUV_MASK2) : v)
+#define YUVClip8(v) (__builtin_expect((v) & ~YUV_MASK2, 0) ? (__builtin_expect((int)(v) < 0, 0) ? 0 : YUV_MASK2) : (v))
 #define YUVRGB555(r,g,b) ((((((r)) >> (10+(YUV_FIX2-7))))) | (((((g)) >> (5+(YUV_FIX2-7)))) & GMASK) | (((((b)) >> (0+(YUV_FIX2-7)))) & BMASK))
 
-const int YUV_FIX2 = 7;                   // fixed-point precision for YUV->RGB
+const int YUV_FIX2 = 8;                   // fixed-point precision for YUV->RGB
 const int YUV_MUL2 = (1 << YUV_FIX2);
-const int YUV_NUDGE2 = (1 << (YUV_FIX2 - 1));
+const int YUV_NUDGE2 = /*(1 << (YUV_FIX2 - 1))*/0;
 const int YUV_MASK2 = (256 << YUV_FIX2) - 1;
 
 const int v1402C_ = 1.402000 * YUV_MUL2;
@@ -33,7 +33,7 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
 
         for (x = 0; x < width; x += 2)
         {
-            unsigned i, j;
+            int i;
             int u, v;
 
             u = pb[0] - 128;
@@ -46,29 +46,46 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
             int u352_ = u0344C_ * u;
             int uv_ = u352_ + v731_ - YUV_NUDGE2;
 
-            unsigned short* d = pbuf;
+            int* d = (int*)pbuf;
             unsigned char* py = ppa;
 
             for (i = 0; i < 2; i++)
             {
-                for (j = 0; j < 2; j++)
-                {
-                    unsigned t;
-                    unsigned ymul = py[j] << YUV_FIX2;
+                int pix = 0;
+                unsigned yy = *(uint16_t *)py;
+                unsigned t, ymul, r, g, b;
 
-                    t = ymul + v1436_;
-                    unsigned r = YUVClip8(t);
+                ymul = (yy&0xff) << YUV_FIX2;
 
-                    t = ymul - uv_;
-                    unsigned g = YUVClip8(t);
+                t = ymul + v1436_;
+                r = YUVClip8(t);
 
-                    t = ymul + u1815_;
-                    unsigned b = YUVClip8(t);
+                t = ymul - uv_;
+                g = YUVClip8(t);
 
-                    d[j] = YUVRGB555(r, g, b);
-                }
+                t = ymul + u1815_;
+                b = YUVClip8(t);
 
-                d += 320;
+                pix = YUVRGB555(r, g, b);
+
+#if YUV_FIX2 <= 8
+                ymul = (yy & ~0xff)>>(8-YUV_FIX2);
+#else
+                ymul = (yy & ~0xff)<<(YUV_FIX2-8);
+#endif
+                t = ymul + v1436_;
+                r = YUVClip8(t);
+
+                t = ymul - uv_;
+                g = YUVClip8(t);
+
+                t = ymul + u1815_;
+                b = YUVClip8(t);
+
+                pix |= YUVRGB555(r, g, b) << 16;
+
+                *d = pix;
+                d += 160;
                 py += width;
             }
 
