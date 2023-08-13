@@ -36,45 +36,49 @@ void init(void)
     binit = 1;
 
     for (j = 0; j < 32; j++) {
+        uint8_t *row = &rfoo[j*256] + 128;
         for (i = 0; i < 256; i++) {
             int v = j << 3;
             v -= 128;
             int p = i + 1.140 * v;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
-            rfoo[j*256+i] = (p >> 3) & 31;
+            row[(int8_t)i] = (p >> 3) & 31;
         }
     }
 
     for (i = 0; i < 32; i++) {
+        uint8_t *row = &uvfoo[i*32];
         for (j = 0; j < 32; j++) {
             int u = i<<3;
             int v = j<<3;
             int p = 0.344136 * u + 0.714136 * v;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
-            uvfoo[i*32+j] = (p+7)>>3;
+            row[j] = (p+7)>>3;
         }
     }
 
     for (j = 0; j < 32; j++) {
+        uint8_t *row = &gfoo[j*256] + 128;
         for (i = 0; i < 256; i++) {
             int uv = (j<<3);
             int p = i - uv + 128;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
-            gfoo[j*256+i] = (p >> 3) & 31;
+            row[(int8_t)i] = (p >> 3) & 31;
         }
     }
 
     for (j = 0; j < 32; j++) {
+        int8_t *row = &bfoo[j*256] + 128;
         for (i = 0; i < 256; i++) {
             int u = j << 3;
             u -= 128;
             int p = i + 1.772000 * u;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
-            bfoo[j*256+i] = (p >> 3) & 31;
+            row[(int8_t)i] = (p >> 3) & 31;
         }
     }
 }
@@ -103,19 +107,19 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
             v = v >> 3;
             unsigned uv = uvfoo[u*32+v];
 
-            uint8_t *r = &rfoo[u*256];
-            uint8_t *g = &gfoo[uv*256];
-            int8_t *b = &bfoo[v*256];
+            uint8_t *r = &rfoo[u*256] + 128;
+            uint8_t *g = &gfoo[uv*256] + 128;
+            int8_t *b = &bfoo[v*256] + 128;
 
             int16_t *d = (int16_t *)pbuf;
-            unsigned char *py = ppa;
+            int8_t *py = (int8_t *)ppa;
 
             for (i = 0; i < 2; i++)
             {
                 for (j = 0; j < 2; j++)
                 {
-                    unsigned y = py[j];
-                    d[j] = (r[y] << 10) | (g[y] << 5) | b[y];
+                    int8_t y = py[j];
+                    d[j] = (((r[y] << 5) | g[y]) << 5) | b[y];
                 }
 
                 d += 320;
