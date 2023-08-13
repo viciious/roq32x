@@ -48,7 +48,7 @@ void init(void)
             int p = i - uv + 128;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
-            row[(int8_t)i] = ((p >> 3) & 31) * 2;
+            row[(int8_t)i] = ((p >> 3) & 31) * 8;
         }
     }
 
