@@ -168,7 +168,7 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height, int refres
 static inline void apply_vector_2x2(roq_info* ri, unsigned x, unsigned y, roq_cell* cell)
 {
 	short *yptr;
-	char *uvptr;
+	short *uvptr;
 	unsigned hw = y * ri->width;
 
 	yptr = (short *)((char *)ri->y[0] + hw + x);
@@ -177,9 +177,8 @@ static inline void apply_vector_2x2(roq_info* ri, unsigned x, unsigned y, roq_ce
 	yptr += (ri->halfwidth - 1);
 	*yptr++ = cell->y02[1];
 
-	uvptr = (char *)&ri->uv[0][(hw >> 1) + x];
-	*uvptr++ = cell->u;
-	*uvptr++ = cell->v;
+	uvptr = (short *)&ri->uv[0][((hw>>1) + x)];
+	*uvptr++ = cell->uv;
 }
 
 
@@ -187,25 +186,24 @@ static inline void apply_vector_2x2(roq_info* ri, unsigned x, unsigned y, roq_ce
 static inline void apply_vector_4x4(roq_info* ri, unsigned x, unsigned y, roq_cell* cell)
 {
 	unsigned row_inc, c_row_inc;
-	unsigned short y0, y1, * yptr;
-	unsigned short uv, * uvptr;
+	short y0, y1, * yptr;
+	short uv, * uvptr;
 	unsigned yw = y * ri->width;
 
-	yptr = (unsigned short*)(ri->y[0] + yw + x);
-	uvptr = (unsigned short*)ri->uv[0] + (yw >> 2) + (x >> 1);
+	yptr = (short*)(ri->y[0] + yw + x);
+	uvptr = (short*)ri->uv[0] + (yw >> 2) + (x >> 1);
 
 	row_inc = (ri->width - 4) >> 1;
 	c_row_inc = ri->halfwidth - 2;
 
-	y0 = cell->y0123[0];
+	y0 = (uint8_t)cell->y0123[0];
 	y0 |= (y0 << 8);
 
-	uv = cell->u;
-	uv = (uv << 8) | (cell->v);
+	uv = cell->uv;
 
 	*yptr++ = y0, * uvptr++ = uv;
 
-	y1 = cell->y0123[1];
+	y1 = (uint8_t)cell->y0123[1];
 	y1 |= (y1 << 8);
 	*yptr++ = y1, * uvptr++ = uv;
 
@@ -216,11 +214,11 @@ static inline void apply_vector_4x4(roq_info* ri, unsigned x, unsigned y, roq_ce
 
 	yptr += row_inc, uvptr += c_row_inc;
 
-	y0 = cell->y0123[2];
+	y0 = (uint8_t)cell->y0123[2];
 	y0 |= (y0 << 8);
 	*yptr++ = y0, * uvptr++ = uv;
 
-	y1 = cell->y0123[3];
+	y1 = (uint8_t)cell->y0123[3];
 	y1 |= (y1 << 8);
 	*yptr++ = y1, * uvptr++ = uv;
 
@@ -552,12 +550,11 @@ loop_start:
 			for (i = 0; i < nv1; i++)
 			{
 				j = (int8_t)i;
-				ri->cells[j].y0123[0] = roq_fgetc(fp);
-				ri->cells[j].y0123[1] = roq_fgetc(fp);
-				ri->cells[j].y0123[2] = roq_fgetc(fp);
-				ri->cells[j].y0123[3] = roq_fgetc(fp);
-				ri->cells[j].u = roq_fgetc(fp);
-				ri->cells[j].v = roq_fgetc(fp);
+				ri->cells[j].y0123[0] = roq_fgetsc(fp);
+				ri->cells[j].y0123[1] = roq_fgetsc(fp);
+				ri->cells[j].y0123[2] = roq_fgetsc(fp);
+				ri->cells[j].y0123[3] = roq_fgetsc(fp);
+				ri->cells[j].uv = (roq_fgetc(fp)<<8) | roq_fgetc(fp);
 			}
 
 			for (i = 0; i < nv2; i++)
@@ -623,7 +620,7 @@ loop_start:
 					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
 					snd_right += ri->snd_sqr_arr[roq_fgetsc(fp)];
 					*p++ = s16pcm_to_u16pwm(snd_left);
-					*p++ = s16pcm_to_u16pwm(snd_right);
+					*p++ = s16pcm_to_u16pwm(snd_left);
 				}
 
 				snddma_submit();

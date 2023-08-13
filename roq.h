@@ -28,9 +28,9 @@
 typedef struct {
 	union {
 		short y02[2];
-		unsigned char y0123[4];
+		char y0123[4];
 	};
-	unsigned char u, v;
+	short uv;
 } roq_cell;
 
 typedef struct {
