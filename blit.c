@@ -47,6 +47,7 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
             u = pb[0];
             v = pb[1];
 
+            // FIXME: why U and V are swapped here?
             uv = ((unsigned)(0.344136 * 0x2000/*0x10000>>3*/) * v + (unsigned)(0.714136 * 0x2000) * u) >> 16;
             u = u >> 3;
             v = v >> 3;
