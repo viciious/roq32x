@@ -167,18 +167,17 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height, int refres
 
 static inline void apply_vector_2x2(roq_info* ri, unsigned x, unsigned y, roq_cell* cell)
 {
-	unsigned char* yptr, * uvptr;
+	short *yptr;
+	char *uvptr;
 	unsigned hw = y * ri->width;
 
-	yptr = ri->y[0] + hw + x;
-	*yptr++ = cell->y0;
-	*yptr++ = cell->y1;
+	yptr = (short *)((char *)ri->y[0] + hw + x);
+	*yptr++ = cell->y02[0];
 
-	yptr += (ri->width - 2);
-	*yptr++ = cell->y2;
-	*yptr++ = cell->y3;
+	yptr += (ri->halfwidth - 1);
+	*yptr++ = cell->y02[1];
 
-	uvptr = &ri->uv[0][(hw >> 1) + x];
+	uvptr = (char *)&ri->uv[0][(hw >> 1) + x];
 	*uvptr++ = cell->u;
 	*uvptr++ = cell->v;
 }
@@ -198,7 +197,7 @@ static inline void apply_vector_4x4(roq_info* ri, unsigned x, unsigned y, roq_ce
 	row_inc = (ri->width - 4) >> 1;
 	c_row_inc = ri->halfwidth - 2;
 
-	y0 = cell->y0;
+	y0 = cell->y0123[0];
 	y0 |= (y0 << 8);
 
 	uv = cell->u;
@@ -206,7 +205,7 @@ static inline void apply_vector_4x4(roq_info* ri, unsigned x, unsigned y, roq_ce
 
 	*yptr++ = y0, * uvptr++ = uv;
 
-	y1 = cell->y1;
+	y1 = cell->y0123[1];
 	y1 |= (y1 << 8);
 	*yptr++ = y1, * uvptr++ = uv;
 
@@ -217,11 +216,11 @@ static inline void apply_vector_4x4(roq_info* ri, unsigned x, unsigned y, roq_ce
 
 	yptr += row_inc, uvptr += c_row_inc;
 
-	y0 = cell->y2;
+	y0 = cell->y0123[2];
 	y0 |= (y0 << 8);
 	*yptr++ = y0, * uvptr++ = uv;
 
-	y1 = cell->y3;
+	y1 = cell->y0123[3];
 	y1 |= (y1 << 8);
 	*yptr++ = y1, * uvptr++ = uv;
 
@@ -530,10 +529,10 @@ loop_start:
 			for (i = 0; i < nv1; i++)
 			{
 				j = (int8_t)i;
-				ri->cells[j].y0 = roq_fgetc(fp);
-				ri->cells[j].y1 = roq_fgetc(fp);
-				ri->cells[j].y2 = roq_fgetc(fp);
-				ri->cells[j].y3 = roq_fgetc(fp);
+				ri->cells[j].y0123[0] = roq_fgetc(fp);
+				ri->cells[j].y0123[1] = roq_fgetc(fp);
+				ri->cells[j].y0123[2] = roq_fgetc(fp);
+				ri->cells[j].y0123[3] = roq_fgetc(fp);
 				ri->cells[j].u = roq_fgetc(fp);
 				ri->cells[j].v = roq_fgetc(fp);
 			}

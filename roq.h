@@ -26,7 +26,11 @@
 #endif
 
 typedef struct {
-	unsigned char y0, y1, y2, y3, u, v;
+	union {
+		short y02[2];
+		unsigned char y0123[4];
+	};
+	unsigned char u, v;
 } roq_cell;
 
 typedef struct {
