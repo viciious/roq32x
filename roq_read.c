@@ -235,7 +235,6 @@ static inline void apply_motion_4x4(roq_info* ri, unsigned x, unsigned y, unsign
 {
 	int i, mx, my;
 	short* pa;
-	unsigned char* pb;
 	short* pc, * pd;
 	unsigned w, hw;
 	unsigned x2, y2;
@@ -254,13 +253,24 @@ static inline void apply_motion_4x4(roq_info* ri, unsigned x, unsigned y, unsign
 	my2 = (my / 2) * hw;
 
 	pa = (short*)ri->y[0] + y2 + x2;
-	pb = ri->y[1] + (my * w) + mx;
-	for (i = 0; i < 4; i++)
-	{
-		*pa = (pb[0] << 8) | pb[1];
-		*(pa + 1) = (pb[2] << 8) | pb[3];
-		pa += hw;
-		pb += w;
+	if (mx & 1) {
+		unsigned char*pb = ri->y[1] + (my * w) + mx;
+		for (i = 0; i < 4; i++)
+		{
+			*pa = (pb[0] << 8) | pb[1];
+			*(pa + 1) = (pb[2] << 8) | pb[3];
+			pa += hw;
+			pb += w;
+		}
+	} else {
+		short *pb = (short *)(ri->y[1] + (my * w) + mx);
+		for (i = 0; i < 4; i++)
+		{
+			*pa = *pb;
+			*(pa + 1) = *(pb + 1);
+			pa += hw;
+			pb += hw;
+		}
 	}
 
 	pc = (short*)ri->uv[0] + (y2 >> 1) + x2;
@@ -280,7 +290,6 @@ static inline void apply_motion_8x8(roq_info* ri, unsigned x, unsigned y, unsign
 {
 	int mx, my, i;
 	short* pa;
-	unsigned char* pb;
 	short* pc, * pd;
 	unsigned w, hw;
 	unsigned x2, y2;
@@ -299,15 +308,29 @@ static inline void apply_motion_8x8(roq_info* ri, unsigned x, unsigned y, unsign
 	my2 = (my / 2) * (hw);
 
 	pa = (short*)ri->y[0] + y2 + x2;
-	pb = ri->y[1] + (my * w) + mx;
-	for (i = 0; i < 8; i++)
-	{
-		*pa = (pb[0] << 8) | pb[1];
-		*(pa + 1) = (pb[2] << 8) | pb[3];
-		*(pa + 2) = (pb[4] << 8) | pb[5];
-		*(pa + 3) = (pb[6] << 8) | pb[7];
-		pa += hw;
-		pb += w;
+
+	if (mx & 1) {
+		unsigned char *pb = ri->y[1] + (my * w) + mx;
+		for (i = 0; i < 8; i++)
+		{
+			*pa = (pb[0] << 8) | pb[1];
+			*(pa + 1) = (pb[2] << 8) | pb[3];
+			*(pa + 2) = (pb[4] << 8) | pb[5];
+			*(pa + 3) = (pb[6] << 8) | pb[7];
+			pa += hw;
+			pb += w;
+		}
+	} else {
+		short *pb = (short*)(ri->y[1] + (my * w) + mx);
+		for (i = 0; i < 8; i++)
+		{
+			*pa = *pb;
+			*(pa + 1) = *(pb + 1);
+			*(pa + 2) = *(pb + 2);
+			*(pa + 3) = *(pb + 3);
+			pa += hw;
+			pb += hw;
+		}
 	}
 
 	pc = (short*)ri->uv[0] + (y2 >> 1) + x2;
