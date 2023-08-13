@@ -567,7 +567,7 @@ loop_start:
 		{
 			int j = 0;
 			uint16_t* p;
-			int16_t snd_left;
+			int snd_left;
 			int total_samples = chunk_size;
 
 			snd_left = (chunk_arg1 << 8) | chunk_arg0;
@@ -585,6 +585,9 @@ loop_start:
 				for (j = 0; j < num_samples; j++)
 				{
 					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
+					//if (snd_left < -32768) snd_left = -32768;
+					//if (snd_left >  32767) snd_left =  32767;
+
 					*p++ = s16pcm_to_u16pwm(snd_left);
 				}
 
@@ -603,7 +606,7 @@ loop_start:
 			int total_samples = chunk_size / 2;
 
 			snd_left = chunk_arg0 << 8;
-			snd_right = chunk_arg1;
+			snd_right = chunk_arg1 << 8;
 
 			for (i = 0; i < total_samples; )
 			{
@@ -618,7 +621,13 @@ loop_start:
 				for (j = 0; j < num_samples; j++)
 				{
 					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
+					//if (snd_left < -32768) snd_left = -32768;
+					//if (snd_left >  32767) snd_left =  32767;
+
 					snd_right += ri->snd_sqr_arr[roq_fgetsc(fp)];
+					//if (snd_right < -32768) snd_right = -32768;
+					//if (snd_right >  32767) snd_right =  32767;
+
 					*p++ = s16pcm_to_u16pwm(snd_left);
 					*p++ = s16pcm_to_u16pwm(snd_right);
 				}
