@@ -4,7 +4,7 @@
 
         .global _roqBase
 _roqBase:
-        .incbin "mansion.roq"
+        .incbin "roq/commercial.roq"
 _roqBase_end = .
 
         .align  4
