@@ -17,18 +17,6 @@ void init(void)
         return;
     binit = 1;
 
-    for (j = 0; j < 32; j++) {
-        uint8_t *row = &rlut[j*256] + 128;
-        for (i = 0; i < 256; i++) {
-            int v = j << 3;
-            v -= 128;
-            int p = i + 1.140 * v;
-            if (p < 0) p = 0;
-            if (p > 255) p = 255;
-            row[(int8_t)i] = (p >> 3) & 31;
-        }
-    }
-
     for (i = 0; i < 32; i++) {
         uint8_t *row = &uvlut[i*32];
         for (j = 0; j < 32; j++) {
@@ -42,13 +30,25 @@ void init(void)
     }
 
     for (j = 0; j < 32; j++) {
+        uint8_t *row = &rlut[j*256] + 128;
+        for (i = 0; i < 256; i++) {
+            int v = j << 3;
+            v -= 128;
+            int p = i + 1.140 * v;
+            if (p < 0) p = 0;
+            if (p > 255) p = 255;
+            row[(int8_t)i] = ((p >> 3) & 31) * 4;
+        }
+    }
+
+    for (j = 0; j < 32; j++) {
         uint8_t *row = &glut[j*256] + 128;
         for (i = 0; i < 256; i++) {
             int uv = (j<<3);
             int p = i - uv + 128;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
-            row[(int8_t)i] = (p >> 3) & 31;
+            row[(int8_t)i] = ((p >> 3) & 31) * 2;
         }
     }
 
