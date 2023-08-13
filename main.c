@@ -166,11 +166,11 @@ roq_file* open_ROMroq(void)
 {
     roq_file* fp = &grf;
 
-    fp->base = &roqBase;
-    fp->pos = fp->base;
-    fp->rover = fp->base;
+    fp->base = roqBase;
+    fp->pos = roqBase;
+    fp->rover = roqBase;
     fp->size = roqSize;
-    fp->end = fp->base + fp->size;
+    fp->end = fp->base + roqSize;
     fp->page = 0;
     return &grf;
 }
