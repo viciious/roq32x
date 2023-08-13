@@ -31,7 +31,7 @@
 /* -------------------------------------------------------------------------- */
 
 static void roq_bufferdata_dummy(roq_file* fp, int readhead) RoQ_ATTR_SDRAM;
-static void roq_on_first_frame(roq_info* ri) RoQ_ATTR_SDRAM;
+static void roq_on_first_frame(roq_info* ri);
 
 static void roq_bufferdata_dummy(roq_file* fp, int readhead)
 {
@@ -113,8 +113,8 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height, int refres
 		return 1;
 	}
 
-	ri->cells = ri->cells_ + 128;
-	ri->qcells = ri->qcells_ + 128;
+	ri->cells = ri->cells_ ;
+	ri->qcells = ri->qcells_ ;
 
 	ri->snd_sqr_arr = ri->snd_sqr_arr_ + 128;
 	for (i = 0; i < 128; i++)
@@ -186,12 +186,12 @@ static inline void apply_vector_2x2(roq_info* ri, unsigned x, unsigned y, roq_ce
 static inline void apply_vector_4x4(roq_info* ri, unsigned x, unsigned y, roq_cell* cell)
 {
 	unsigned row_inc, c_row_inc;
-	short y0, y1, * yptr;
-	short uv, * uvptr;
+	unsigned short y0, y1, * yptr;
+	unsigned short uv, * uvptr;
 	unsigned yw = y * ri->width;
 
-	yptr = (short*)(ri->y[0] + yw + x);
-	uvptr = (short*)ri->uv[0] + (yw >> 2) + (x >> 1);
+	yptr = (unsigned short*)(ri->y[0] + yw + x);
+	uvptr = (unsigned short*)ri->uv[0] + (yw >> 2) + (x >> 1);
 
 	row_inc = (ri->width - 4) >> 1;
 	c_row_inc = ri->halfwidth - 2;
@@ -354,11 +354,12 @@ static void roq_on_first_frame(roq_info* ri)
 		ri->uv[i] = ri->uv256[i];
 
 		{
+			memset(ri->y[i], 0, RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT);
+			memset(ri->uv[i], 0, RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT / 4 * 2);
+
+#if 0
 			int j;
 			int* pi;
-
-			//memset(ri->y[i], 0, RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT);
-			//memset(ri->uv[i], 0, RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT / 4 * 2);
 
 			pi = (int*)ri->y[i];
 			for (j = 0; j < RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT / 4; j++) {
@@ -369,6 +370,7 @@ static void roq_on_first_frame(roq_info* ri)
 			for (j = 0; j < RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT / 4 * 2 / 4; j++) {
 				pi[j] = 0;
 			}
+#endif
 		}
 	}
 
@@ -453,7 +455,7 @@ static int roq_apply_fcc(roq_info* ri, unsigned x, unsigned y, char* buf)
 static int roq_apply_sld(roq_info* ri, unsigned x, unsigned y, char* buf)
 {
 	roq_qcell* qcell;
-	qcell = ri->qcells + buf[0];
+	qcell = ri->qcells + (uint8_t)buf[0];
 	apply_vector_4x4(ri, x, y, ri->cells + qcell->idx[0]);
 	apply_vector_4x4(ri, x + 4, y, ri->cells + qcell->idx[1]);
 	apply_vector_4x4(ri, x, y + 4, ri->cells + qcell->idx[2]);
@@ -492,7 +494,7 @@ static int roq_apply_fcc2(roq_info* ri, unsigned x, unsigned y, char* buf)
 static int roq_apply_sld2(roq_info* ri, unsigned x, unsigned y, char* buf)
 {
 	roq_qcell* qcell;
-	qcell = ri->qcells + buf[0];
+	qcell = ri->qcells + (uint8_t)buf[0];
 	apply_vector_2x2(ri, x, y, ri->cells + qcell->idx[0]);
 	apply_vector_2x2(ri, x + 2, y, ri->cells + qcell->idx[1]);
 	apply_vector_2x2(ri, x, y + 2, ri->cells + qcell->idx[2]);
@@ -502,17 +504,17 @@ static int roq_apply_sld2(roq_info* ri, unsigned x, unsigned y, char* buf)
 
 static int roq_apply_cc2(roq_info* ri, unsigned x, unsigned y, char* buf)
 {
-	apply_vector_2x2(ri, x, y, ri->cells + (int8_t)buf[0]);
-	apply_vector_2x2(ri, x + 2, y, ri->cells + (int8_t)buf[1]);
-	apply_vector_2x2(ri, x, y + 2, ri->cells + (int8_t)buf[2]);
-	apply_vector_2x2(ri, x + 2, y + 2, ri->cells + (int8_t)buf[3]);
+	apply_vector_2x2(ri, x, y, ri->cells + (uint8_t)buf[0]);
+	apply_vector_2x2(ri, x + 2, y, ri->cells + (uint8_t)buf[1]);
+	apply_vector_2x2(ri, x, y + 2, ri->cells + (uint8_t)buf[2]);
+	apply_vector_2x2(ri, x + 2, y + 2, ri->cells + (uint8_t)buf[3]);
 	return 4;
 }
 
 /* -------------------------------------------------------------------------- */
 int roq_read_frame(roq_info* ri, char loop)
 {
-	int i, j, nv1, nv2;
+	int i, nv1, nv2;
 	roq_file* fp = ri->fp;
 	unsigned int chunk_id = 0, chunk_arg0 = 0, chunk_arg1 = 0;
 	unsigned long chunk_size = 0;
@@ -547,21 +549,11 @@ loop_start:
 			if ((nv1 = chunk_arg1) == 0) nv1 = 256;
 			if ((nv2 = chunk_arg0) == 0 && nv1 * 6 < chunk_size) nv2 = 256;
 
-			for (i = 0; i < nv1; i++)
-			{
-				j = (int8_t)i;
-				ri->cells[j].y0123[0] = roq_fgetsc(fp);
-				ri->cells[j].y0123[1] = roq_fgetsc(fp);
-				ri->cells[j].y0123[2] = roq_fgetsc(fp);
-				ri->cells[j].y0123[3] = roq_fgetsc(fp);
-				ri->cells[j].uv = (roq_fgetc(fp)<<8) | roq_fgetc(fp);
-			}
+			memcpy(ri->cells_, fp->rover, nv1*6);
+			fp->rover += nv1*6;
 
-			for (i = 0; i < nv2; i++)
-			{
-				for (j = 0; j < 4; j++)
-					ri->qcells[(int8_t)i].idx[j] = roq_fgetsc(fp);
-			}
+			memcpy(ri->qcells, fp->rover, nv2*4);
+			fp->rover += nv2*4;
 			break;
 		case RoQ_SOUND_MONO:
 		{

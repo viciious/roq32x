@@ -34,7 +34,7 @@ typedef struct {
 } roq_cell;
 
 typedef struct {
-	char idx[4];
+	unsigned char idx[4];
 } roq_qcell;
 
 typedef struct {
