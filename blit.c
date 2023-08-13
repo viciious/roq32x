@@ -21,22 +21,23 @@ const int v0714C_ = 0.714136 * YUV_MUL2;
 const int u0344C_ = 0.344136 * YUV_MUL2;
 const int u1772C_ = 1.772000 * YUV_MUL2;
 
-static uint8_t uvfoo[32*32];
-static uint8_t rfoo[256*32];
-static uint8_t gfoo[256*32];
-static int8_t bfoo[256*32];
+static uint8_t uvlut[32*32];
+static uint8_t rgblut[256*32*3];
 
 int binit = 0;
 void init(void)
 {
     int i, j;
+    uint8_t *rlut = rgblut;
+    uint8_t *glut = rlut + 256*32;
+    int8_t *blut = (int8_t *)glut + 256*32;
 
     if (binit)
         return;
     binit = 1;
 
     for (j = 0; j < 32; j++) {
-        uint8_t *row = &rfoo[j*256] + 128;
+        uint8_t *row = &rlut[j*256] + 128;
         for (i = 0; i < 256; i++) {
             int v = j << 3;
             v -= 128;
@@ -48,7 +49,7 @@ void init(void)
     }
 
     for (i = 0; i < 32; i++) {
-        uint8_t *row = &uvfoo[i*32];
+        uint8_t *row = &uvlut[i*32];
         for (j = 0; j < 32; j++) {
             int u = i<<3;
             int v = j<<3;
@@ -60,7 +61,7 @@ void init(void)
     }
 
     for (j = 0; j < 32; j++) {
-        uint8_t *row = &gfoo[j*256] + 128;
+        uint8_t *row = &glut[j*256] + 128;
         for (i = 0; i < 256; i++) {
             int uv = (j<<3);
             int p = i - uv + 128;
@@ -71,7 +72,7 @@ void init(void)
     }
 
     for (j = 0; j < 32; j++) {
-        int8_t *row = &bfoo[j*256] + 128;
+        int8_t *row = &blut[j*256] + 128;
         for (i = 0; i < 256; i++) {
             int u = j << 3;
             u -= 128;
@@ -88,6 +89,9 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
 {
     unsigned x, y;
     unsigned char* pb = ppb;
+    uint8_t *rlut = rgblut;
+    uint8_t *glut = rlut + 256*32;
+    int8_t *blut = (int8_t *)glut + 256*32;
 
     init();
 
@@ -105,26 +109,29 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
 
             u = u >> 3;
             v = v >> 3;
-            unsigned uv = uvfoo[u*32+v];
+            unsigned uv = uvlut[u*32+v];
 
-            uint8_t *r = &rfoo[u*256] + 128;
-            uint8_t *g = &gfoo[uv*256] + 128;
-            int8_t *b = &bfoo[v*256] + 128;
+            uint8_t *r = &rlut[u*256] + 128;
+            uint8_t *g = &glut[uv*256] + 128;
+            int8_t *b = &blut[v*256] + 128;
 
             int16_t *d = (int16_t *)pbuf;
             int8_t *py = (int8_t *)ppa;
 
-            for (i = 0; i < 2; i++)
-            {
-                for (j = 0; j < 2; j++)
-                {
-                    int8_t y = py[j];
-                    d[j] = (((r[y] << 5) | g[y]) << 5) | b[y];
-                }
+            int8_t y;
+                
+            y = py[0];
+            d[0] = (((r[y] << 5) | g[y]) << 5) | b[y];
+            y = py[1];
+            d[1] = (((r[y] << 5) | g[y]) << 5) | b[y];
 
-                d += 320;
-                py += width;
-            }
+            d += 320;
+            py += width;
+
+            y = py[0];
+            d[0] = (((r[y] << 5) | g[y]) << 5) | b[y];
+            y = py[1];
+            d[1] = (((r[y] << 5) | g[y]) << 5) | b[y];
 
             ppa += 2;
             pbuf += 2;
