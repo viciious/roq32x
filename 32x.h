@@ -133,7 +133,23 @@
 #define SEGA_CTRL_SIX       0x1000
 #define SEGA_CTRL_NONE      0xF000
 
-#define ClearCacheLine(addr) *(volatile int *)((addr) | 0x40000000) = 0
+
+#define ClearCacheLine(addr) *(volatile uintptr_t *)(((uintptr_t)addr & ~15) | 0x40000000) = 0
+#define ClearCache() \
+	do { \
+		CacheControl(0); /* disable cache */ \
+		CacheControl(SH2_CCTL_CP | SH2_CCTL_CE); /* purge and re-enable */ \
+	} while (0)
+
+#define ClearCacheLines(paddr,nl) \
+	do { \
+		uintptr_t addr = ((uintptr_t)(paddr) & ~15) | 0x40000000; \
+		uint32_t l; \
+		for (l = 0; l < nl; l++) { \
+			*(volatile uintptr_t *)addr = 0; \
+			addr += 16; \
+		} \
+	} while (0)
 
 #define ClearCache() \
 	do { \
