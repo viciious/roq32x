@@ -25,7 +25,7 @@ void init(void)
             int p = y + 1.140 * v;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
-            row[(int8_t)i] = ((p >> 3) & 31) * 4;
+            row[(int8_t)i] = (p >> 3) * 4;
         }
     }
 
@@ -37,7 +37,7 @@ void init(void)
             int p = y - uv + 128;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
-            row[(int8_t)i] = ((p >> 3) & 31) * 8;
+            row[(int8_t)i] = (p >> 3) * 8;
         }
     }
 
@@ -50,7 +50,7 @@ void init(void)
             int p = y + 1.772000 * u;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
-            row[(int8_t)i] = (p >> 3) & 31;
+            row[(int8_t)i] = (p >> 3);
         }
     }
 }
