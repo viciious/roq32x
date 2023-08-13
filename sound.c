@@ -11,14 +11,14 @@ void sec_dma_kickstart(void) SND_ATTR_SDRAM;
 uint16_t* snddma_get_buf(int channels, int num_samples) {
     uint16_t* p;
 
-    p = (uint16_t*)Mars_RB_GetWriteBuf(&soundbuf, 8);
+    p = (uint16_t*)Mars_RB_GetWriteBuf(&soundbuf, 8, 1);
     if (!p)
         return NULL;
     *p++ = channels;
     *p++ = num_samples;
     Mars_RB_CommitWrite(&soundbuf);
 
-    return (uint16_t*)Mars_RB_GetWriteBuf(&soundbuf, num_samples * channels);
+    return (uint16_t*)Mars_RB_GetWriteBuf(&soundbuf, num_samples * channels, 1);
 }
 
 uint16_t* snddma_get_buf_mono(int num_samples) {
@@ -68,12 +68,12 @@ void sec_dma1_handler(void)
         return;
     }
 
-    short* p = Mars_RB_GetReadBuf(&soundbuf, 8);
+    short* p = Mars_RB_GetReadBuf(&soundbuf, 8, 1);
     int num_channels = *p++;
     int num_samples = *p++;
     Mars_RB_CommitRead(&soundbuf);
 
-    p = Mars_RB_GetReadBuf(&soundbuf, num_samples * num_channels);
+    p = Mars_RB_GetReadBuf(&soundbuf, num_samples * num_channels, 0);
 
     SH2_DMA_SAR1 = (intptr_t)p | 0x20000000;
     SH2_DMA_TCR1 = num_samples;
