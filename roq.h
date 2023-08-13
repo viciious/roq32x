@@ -16,7 +16,7 @@
 
 #define RoQ_SAMPLE_RATE    22050
 
-#define RoQ_MAX_WIDTH	256
+#define RoQ_MAX_WIDTH	320
 #define RoQ_MAX_HEIGHT	192
 
 #ifdef __32X__
