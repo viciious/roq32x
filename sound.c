@@ -75,7 +75,7 @@ void sec_dma1_handler(void)
 
     p = Mars_RB_GetReadBuf(&soundbuf, num_samples * num_channels);
 
-    SH2_DMA_SAR1 = (intptr_t)p | 0x20000000;
+    SH2_DMA_SAR1 = (intptr_t)p;
     SH2_DMA_TCR1 = num_samples;
     if (num_channels == 2)
     {

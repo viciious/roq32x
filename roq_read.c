@@ -95,13 +95,14 @@ static inline unsigned int get_long(roq_file* fp)
 static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height)
 {
 	int i;
-	unsigned int head1, head2, head3;
+	unsigned int head1, head2;
+	unsigned framerate;
 	unsigned chunk_id, chunk_size;
 
 	head1 = get_word(fp);
 	head2 = get_long(fp);
-	head3 = get_word(fp);
-	if (head1 != 0x1084 && head2 != 0xffffffff && head3 != 0x1e)
+	framerate = get_word(fp);
+	if (head1 != 0x1084 && head2 != 0xffffffff)
 	{
 		//printf("Not an RoQ file.\n");
 		return 1;

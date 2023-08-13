@@ -15,7 +15,7 @@ CCFLAGS += -D__32X__ -DMARS
 HWFLAGS := $(CCFLAGS)
 HWFLAGS += -O1 -fno-lto
 
-CCFLAGS += -Os -funroll-loops -funsafe-loop-optimizations -lto
+CCFLAGS += -Os -funroll-loops -funsafe-loop-optimizations -flto
 CCFLAGS += -fno-align-loops -fno-align-functions -fno-align-jumps -fno-align-labels
 
 LDFLAGS = -T mars.ld -Wl,-Map=output.map -nostdlib -Wl,--gc-sections --specs=nosys.specs -flto
@@ -49,7 +49,7 @@ m68k.bin:
 
 $(TARGET).32x: $(TARGET).elf
 	$(OBJC) -O binary $< temp2.bin
-	$(DD) if=temp2.bin of=temp.bin bs=64K conv=sync
+	$(DD) if=temp2.bin of=temp.bin bs=92K conv=sync
 	rm -f temp3.bin
 	cat temp.bin roq/commercial.roq >>temp3.bin
 	$(DD) if=temp3.bin of=$@ bs=512K conv=sync

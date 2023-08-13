@@ -2,6 +2,7 @@
 #include "32x.h"
 #include "roq.h"
 #include "blit.h"
+#include "luts.h"
 
 #define RMASK ((1<<5)-1)
 #define GMASK (((1<<10)-1) & ~RMASK)
@@ -21,6 +22,7 @@ const int v0714C_ = 0.714136 * YUV_MUL2;
 const int u0344C_ = 0.344136 * YUV_MUL2;
 const int u1772C_ = 1.772000 * YUV_MUL2;
 
+#if 0
 static uint8_t uvlut[32*32];
 static uint8_t rgblut[256*32*3];
 
@@ -84,16 +86,16 @@ void init(void)
     }
 }
 
+#endif
+
 unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
     unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height, unsigned buf_incr, const short breakval)
 {
     unsigned x, y;
     unsigned char* pb = ppb;
-    uint8_t *rlut = rgblut;
-    uint8_t *glut = rlut + 256*32;
-    int8_t *blut = (int8_t *)glut + 256*32;
-
-    init();
+    const uint8_t *rlut = rgblut;
+    const uint8_t *glut = rlut + 256*32;
+    const int8_t *blut = (const int8_t *)glut + 256*32;
 
     for (y = start_y; y < height; y += 2)
     {
@@ -101,7 +103,6 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
 
         for (x = 0; x < width; x += 2)
         {
-            unsigned i, j;
             unsigned u, v;
 
             u = pb[0];
@@ -109,11 +110,11 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
 
             u = u >> 3;
             v = v >> 3;
-            unsigned uv = uvlut[u*32+v];
+            int8_t uv = uvlut[u*32+v];
 
-            uint8_t *r = &rlut[u*256] + 128;
-            uint8_t *g = &glut[uv*256] + 128;
-            int8_t *b = &blut[v*256] + 128;
+            const uint8_t *r = &rlut[u*256] + 128;
+            const uint8_t *g = &glut[uv*256] + 128;
+            const int8_t *b = &blut[v*256] + 128;
 
             int16_t *d = (int16_t *)pbuf;
             int8_t *py = (int8_t *)ppa;
