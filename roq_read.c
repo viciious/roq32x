@@ -620,7 +620,7 @@ loop_start:
 					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
 					snd_right += ri->snd_sqr_arr[roq_fgetsc(fp)];
 					*p++ = s16pcm_to_u16pwm(snd_left);
-					*p++ = s16pcm_to_u16pwm(snd_left);
+					*p++ = s16pcm_to_u16pwm(snd_right);
 				}
 
 				snddma_submit();
