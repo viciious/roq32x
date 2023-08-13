@@ -49,7 +49,8 @@ typedef struct {
 	int buf_size;
 	roq_cell cells[256];
 	roq_qcell qcells[256];
-	short snd_sqr_arr[260];
+	short snd_sqr_arr_[260];
+	short *snd_sqr_arr;
 	long roq_start;
 	unsigned width, height, frame_num;
 	unsigned halfwidth, halfheight;

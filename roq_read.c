@@ -43,6 +43,11 @@ static inline int roq_fgetc(roq_file* fp) {
 	return *fp->rover++;
 }
 
+static inline int roq_fgetsc(roq_file* fp) {
+	fp->pos++;
+	return *(int8_t *)fp->rover++;
+}
+
 static inline int roq_ftell(roq_file* fp) {
 	return fp->pos - fp->base;
 }
@@ -108,10 +113,11 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height, int refres
 		return 1;
 	}
 
+	ri->snd_sqr_arr = ri->snd_sqr_arr_ + 128;
 	for (i = 0; i < 128; i++)
 	{
-		ri->snd_sqr_arr[i] = i * i;
-		ri->snd_sqr_arr[i + 128] = -(i * i);
+		ri->snd_sqr_arr[(int8_t)i] = i * i;
+		ri->snd_sqr_arr[(int8_t)(i + 128)] = -(i * i);
 	}
 
 	ri->framerate = (refresh_rate * 0x10000 / framerate) >> 16;
@@ -555,7 +561,7 @@ loop_start:
 
 				for (j = 0; j < num_samples; j++)
 				{
-					snd_left += ri->snd_sqr_arr[roq_fgetc(fp)];
+					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
 					*p++ = s16pcm_to_u16pwm(snd_left);
 				}
 
@@ -588,8 +594,8 @@ loop_start:
 
 				for (j = 0; j < num_samples; j++)
 				{
-					snd_left += ri->snd_sqr_arr[roq_fgetc(fp)];
-					snd_right += ri->snd_sqr_arr[roq_fgetc(fp)];
+					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
+					snd_right += ri->snd_sqr_arr[roq_fgetsc(fp)];
 					*p++ = s16pcm_to_u16pwm(snd_left);
 					*p++ = s16pcm_to_u16pwm(snd_right);
 				}
