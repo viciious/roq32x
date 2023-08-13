@@ -30,7 +30,7 @@ typedef struct {
 } roq_cell;
 
 typedef struct {
-	unsigned char idx[4];
+	char idx[4];
 } roq_qcell;
 
 typedef struct {
@@ -47,8 +47,10 @@ typedef void (*roq_bufferdata_t)(roq_file*, int readahead);
 typedef struct {
 	roq_file *fp;
 	int buf_size;
-	roq_cell cells[256];
-	roq_qcell qcells[256];
+	roq_cell *cells;
+	roq_cell cells_[256];
+	roq_qcell *qcells;
+	roq_qcell qcells_[256];
 	short snd_sqr_arr_[260];
 	short *snd_sqr_arr;
 	long roq_start;
