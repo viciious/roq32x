@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-static uint8_t uvlut[32*32];
 static uint8_t rgblut[256*32*3];
 
 int binit = 0;
@@ -16,18 +15,6 @@ void init(void)
     if (binit)
         return;
     binit = 1;
-
-    for (i = 0; i < 32; i++) {
-        uint8_t *row = &uvlut[i*32];
-        for (j = 0; j < 32; j++) {
-            int u = i<<3;
-            int v = j<<3;
-            int p = 0.344136 * u + 0.714136 * v;
-            if (p < 0) p = 0;
-            if (p > 255) p = 255;
-            row[j] = p>>3;
-        }
-    }
 
     for (j = 0; j < 32; j++) {
         uint8_t *row = &rlut[j*256] + 128;
@@ -72,17 +59,6 @@ int main(int argc, char **argv) {
 
     printf("#include <stdint.h>\n");
     printf("\n");
-    printf("static const uint8_t uvlut[32*32] = {\n");
-    for (i = 0; i < 32; i++) {
-        uint8_t *row = &uvlut[i*32];
-
-        for (j = 0; j < 32; j++) {
-            printf("0x%02x%s", row[j], (i == 31 && j == 31 ? "" : ","));
-        }
-        printf("\n");
-    }
-    printf("};\n");
-
     printf("static const uint8_t rgblut[256*32*3] = {\n");
     for (k = 0; k < 3; k++) {
         uint8_t *lut = &rgblut[256*32*k];

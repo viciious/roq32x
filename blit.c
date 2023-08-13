@@ -115,7 +115,7 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
 
             u = u >> 3;
             v = v >> 3;
-            uv = uvlut[u*32+v];
+            uv = ((int)(0.344136 * 0x10000) * u + (int)(0.714136 * 0x10000) * v) >> 16;
 
             r = &rlut[u*256];
             g = &glut[uv*256];
