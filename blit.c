@@ -41,7 +41,7 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
             int8_t uv;
             const uint8_t *r, *g;
             const int8_t *b;
-            int16_t *d;
+            int32_t *d, pix;
             int8_t y, *py;
 
             u = pb[0];
@@ -55,21 +55,23 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
             g = &glut[uv*256];
             b = &blut[v*256];
 
-            d = (int16_t *)pbuf;
+            d = (int32_t *)pbuf;
             py = (int8_t *)ppa;
 
             y = py[0];
-            d[0] = (r[y] << 8) | (g[y] << 2) | b[y];
+            pix = (r[y] << 8) | (g[y] << 2) | b[y];
             y = py[1];
-            d[1] = (r[y] << 8) | (g[y] << 2) | b[y];
+            pix = (pix << 16) | (r[y] << 8) | (g[y] << 2) | b[y];
 
-            d += 320;
+            *d = pix;
+            d += 160;
             py += width;
 
             y = py[0];
-            d[0] = (r[y] << 8) | (g[y] << 2) | b[y];
+            pix = (r[y] << 8) | (g[y] << 2) | b[y];
             y = py[1];
-            d[1] = (r[y] << 8) | (g[y] << 2) | b[y];
+            pix = (pix << 16) | (r[y] << 8) | (g[y] << 2) | b[y];
+            *d = pix;
 
             ppa += 2;
             pbuf += 2;
