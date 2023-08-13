@@ -539,18 +539,19 @@ loop_start:
 			int j = 0;
 			uint16_t* p;
 			int16_t snd_left;
+			int total_samples = chunk_size;
 
 			snd_left = (chunk_arg1 << 8) | chunk_arg0;
 
-			for (i = 0; i < chunk_size; )
+			for (i = 0; i < total_samples; )
 			{
-				int num_samples = chunk_size - i;
+				int num_samples = total_samples - i;
 				if (num_samples > 256)
 					num_samples = 256;
 
 				p = snddma_get_buf_mono(num_samples);
 				if (!p)
-					return -1;
+					break;
 
 				for (j = 0; j < num_samples; j++)
 				{
@@ -571,20 +572,20 @@ loop_start:
 			int j = 0;
 			uint16_t *p;
 			int16_t snd_left, snd_right;
+			int total_samples = chunk_size / 2;
 
 			snd_left = chunk_arg0 << 8;
 			snd_right = chunk_arg1;
 
-			chunk_size /= 2;
-			for (i = 0; i < chunk_size; )
+			for (i = 0; i < total_samples; )
 			{
-				int num_samples = chunk_size - i;
+				int num_samples = total_samples - i;
 				if (num_samples > 256)
 					num_samples = 256;
 
 				p = snddma_get_buf_stereo(num_samples);
 				if (!p)
-					return -1;
+					break;
 
 				for (j = 0; j < num_samples; j++)
 				{
