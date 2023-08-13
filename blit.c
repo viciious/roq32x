@@ -28,8 +28,8 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
     unsigned x, y;
     unsigned char* pb = ppb;
     const uint8_t *rlut = (uint8_t *)rgblut + 128;
-    const uint8_t *glut = rlut + 256*32;
-    const int8_t *blut = (const int8_t *)glut + 256*32;
+    const uint8_t *glut = rlut + 128*32;
+    const int8_t *blut = (const int8_t *)glut + 128*32;
 
     for (y = start_y; y < height; y += 2)
     {
@@ -51,16 +51,18 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
             u = u >> 3;
             v = v >> 3;
 
-            r = &rlut[u*256];
-            g = &glut[uv*256];
-            b = &blut[v*256];
+            r = &rlut[u*128];
+            g = &glut[uv*128];
+            b = &blut[v*128];
 
             d = (int32_t *)pbuf;
             py = (int8_t *)ppa;
 
             y = py[0];
+            y >>= 1;
             pix = (r[y] << 8) | (g[y] << 2) | b[y];
             y = py[1];
+            y >>= 1;
             pix = (pix << 16) | (r[y] << 8) | (g[y] << 2) | b[y];
 
             *d = pix;
@@ -68,8 +70,10 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
             py += width;
 
             y = py[0];
+            y >>= 1;
             pix = (r[y] << 8) | (g[y] << 2) | b[y];
             y = py[1];
+            y >>= 1;
             pix = (pix << 16) | (r[y] << 8) | (g[y] << 2) | b[y];
             *d = pix;
 
