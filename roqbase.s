@@ -4,8 +4,11 @@
 
         .global _roqBase
 _roqBase:
-	.long   0x2017000
+        .incbin "roq/commercial.roq"
+_roqBase_end = .
+
+        .align  4
 
 	.global _roqSize
 _roqSize:
-        .long   3485700
+        .long _roqBase_end-_roqBase

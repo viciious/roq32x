@@ -48,11 +48,8 @@ m68k.bin:
 	make -C src-md
 
 $(TARGET).32x: $(TARGET).elf
-	$(OBJC) -O binary $< temp2.bin
-	$(DD) if=temp2.bin of=temp.bin bs=92K conv=sync
-	rm -f temp3.bin
-	cat temp.bin roq/commercial.roq >>temp3.bin
-	$(DD) if=temp3.bin of=$@ bs=512K conv=sync
+	$(OBJC) -O binary $< temp.bin
+	$(DD) if=temp.bin of=$@ bs=512K conv=sync
 
 $(TARGET).elf: $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $(TARGET).elf
