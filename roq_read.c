@@ -92,7 +92,7 @@ static inline unsigned int get_long(roq_file* fp)
 
 
 /* -------------------------------------------------------------------------- */
-static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height)
+static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height, int refresh_rate)
 {
 	int i;
 	unsigned int head1, head2;
@@ -114,6 +114,7 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int max_height)
 		ri->snd_sqr_arr[i + 128] = -(i * i);
 	}
 
+	ri->framerate = (refresh_rate * 0x10000 / framerate) >> 16;
 	ri->roq_start = roq_ftell(fp);
 	while (!roq_feof(fp))
 	{
@@ -343,11 +344,10 @@ static void roq_on_first_frame(roq_info* ri)
 	}
 
 	ri->frame_num = 0;
-	ri->aud_chunk_size = 0;
 }
 
 /* -------------------------------------------------------------------------- */
-roq_info* roq_open(roq_file* fp, int max_height, roq_bufferdata_t buf)
+roq_info* roq_open(roq_file* fp, int max_height, roq_bufferdata_t buf, int refresh_rate)
 {
 	roq_info* ri;
 	static roq_info ris;
@@ -357,7 +357,7 @@ roq_info* roq_open(roq_file* fp, int max_height, roq_bufferdata_t buf)
 	ri->buffer = buf ? buf : roq_bufferdata_dummy;
 
 	if (max_height > RoQ_MAX_HEIGHT) max_height = RoQ_MAX_HEIGHT;
-	if (roq_parse_file(fp, ri, max_height)) return NULL;
+	if (roq_parse_file(fp, ri, max_height, refresh_rate)) return NULL;
 	roq_on_first_frame(ri);
 
 	return ri;
@@ -564,7 +564,6 @@ loop_start:
 				i += num_samples;
 			}
 		}
-		ri->aud_chunk_size = chunk_size;
 			break;
 
 		case RoQ_SOUND_STEREO:
@@ -600,7 +599,6 @@ loop_start:
 				i += num_samples;
 			}
 		}
-		ri->aud_chunk_size = chunk_size;
 		break;
 		}
 

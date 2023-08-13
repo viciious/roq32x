@@ -63,14 +63,14 @@ typedef struct {
 	unsigned chunk_arg0, chunk_arg1;
 	unsigned vqflg;
 	unsigned vqflg_pos;
-	unsigned aud_chunk_size;
+	unsigned framerate;
 } roq_info;
 
 /* -------------------------------------------------------------------------- */
 
 void roq_init(void);
 void roq_cleanup(void);
-roq_info *roq_open(roq_file *fp, int max_height, roq_bufferdata_t buf);
+roq_info *roq_open(roq_file *fp, int max_height, roq_bufferdata_t buf, int refresh_rate);
 void roq_close(roq_info *ri);
 int roq_read_video(roq_info *ri, char loop);
 int roq_read_audio(roq_info *ri, char loop);

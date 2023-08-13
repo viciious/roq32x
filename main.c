@@ -195,7 +195,7 @@ int main(void)
     int totaltics;
     char paused = 0, hud = 0, clearhud = 0;
     unsigned bytesread, bps, maxbps;
-    int ticksperframe;
+    int refresh_rate;
 
     SetSH2SR(1);
 
@@ -217,7 +217,9 @@ int main(void)
     MARS_SYS_COMM6 = 0;
     while (MARS_SYS_COMM4 != 0) {}
 
-    if ((gri = roq_open(open_ROMroq(), 200, switch_ROMbanks)) == NULL) return -1;
+    refresh_rate = MARS_VDP_DISPMODE & MARS_NTSC_FORMAT ? 60 : 50;
+
+    if ((gri = roq_open(open_ROMroq(), 200, switch_ROMbanks, refresh_rate)) == NULL) return -1;
 
     blit_mode = 0;
 
@@ -236,14 +238,6 @@ start:
         bytesread = 0;
         bps = 0;
         maxbps = 0;
-
-        if (gri->width <= BLIT_STRETCH_WIDTH_X2) {
-            ticksperframe = 2; // 30/25 fps
-        }
-        else {
-            ticksperframe = (MARS_VDP_DISPMODE & MARS_NTSC_FORMAT ? 4 : 3); // 15 / 16-17fps
-        }
-        ticksperframe = 2;
 
         if (gri->width <= BLIT_STRETCH_WIDTH_X2)
         {
@@ -307,7 +301,7 @@ start:
                 if (ret == 0) {
                     while (MARS_SYS_COMM4 != 0);
                     close_ROMroq();
-                    if ((gri = roq_open(open_ROMroq(), 200, switch_ROMbanks)) == NULL)
+                    if ((gri = roq_open(open_ROMroq(), 200, switch_ROMbanks, refresh_rate)) == NULL)
                         return -1;
                     goto start;
                 }
@@ -328,7 +322,7 @@ start:
             totaltics = Hw32xGetTicks() - starttics;
 
             waittics = totaltics;
-            while (waittics < ticksperframe) {
+            while (waittics < gri->framerate) {
                 waittics = Hw32xGetTicks() - starttics;
             }
 
