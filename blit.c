@@ -27,8 +27,8 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
 {
     unsigned x, y;
     unsigned char* pb = ppb;
-    const uint8_t *rlut = (uint8_t *)rgblut + 128;
-    const uint8_t *glut = rlut + 128*32;
+    const int8_t *rlut = (int8_t *)rgblut + 128;
+    const uint8_t *glut = (uint8_t *)rlut + 128*32;
     const int8_t *blut = (const int8_t *)glut + 128*32;
 
     for (y = start_y; y < height; y += 2)
@@ -39,8 +39,8 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
         {
             unsigned u, v;
             int8_t uv;
-            const uint8_t *r, *g;
-            const int8_t *b;
+            const uint8_t *g;
+            const int8_t *r, *b;
             int32_t *d, pix;
             int8_t y, *py;
 

@@ -22,8 +22,8 @@ void init(void)
             int y = i << 1;
             int v = j << 3;
             v -= 128;
-            int p = y + 1.140 * v;
-            p += 3;            
+            int p = y + 1.402000 * v;
+            p += 1;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
             row[(int8_t)i] = (p >> 3) * 4;
@@ -36,7 +36,7 @@ void init(void)
             int y = i << 1;
             int uv = (j<<3);
             int p = y - uv + 128;
-            p += 3;
+            p += 1;
             if (p < 0) p = 0;
             if (p > 255) p = 255;
             row[(int8_t)i] = (p >> 3) * 8;
