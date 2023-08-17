@@ -134,8 +134,6 @@ void snddma_sec_init(int sample_rate)
         sample++;
     }
 
-    SetSH2SR(2);
-
     sec_dma_kickstart();
 }
 

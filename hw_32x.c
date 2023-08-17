@@ -31,9 +31,26 @@ volatile unsigned short currentFB = 0;
 
 #define UNCACHED_CURFB (*(short *)((int)&currentFB|0x20000000))
 
+void pri_cmd_handler(void);
+void sec_cmd_handler(void);
+
 void pri_vbi_handler(void)
 {
     mars_vblank_count++;
+}
+
+void pri_cmd_handler(void)
+{
+    // done
+    MARS_SYS_COMM0 = 0xA55A;					/* handshake with code */
+    while (MARS_SYS_COMM0 == 0xA55A);
+}
+
+void sec_cmd_handler(void)
+{
+    // done
+    MARS_SYS_COMM4 = 0xA55A;					/* handshake with code */
+    while (MARS_SYS_COMM4 == 0xA55A);
 }
 
 unsigned Hw32xGetTicks(void)
@@ -526,8 +543,6 @@ void HwMdPutsf(int x, int y, int color, const char* format, ...)
 void Hw32xSetBankPage(int bank, int page)
 {
     while (MARS_SYS_COMM0);
-    MARS_SYS_COMM2 = page;
-    MARS_SYS_COMM0 = 0x1200 | bank;
+    MARS_SYS_COMM0 = 0x1200 | (page<<3) | bank;
     while (MARS_SYS_COMM0);
 }
-

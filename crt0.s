@@ -390,7 +390,7 @@ pri_start:
         mov     #0x80,r0
         mov.l   _pri_adapter,r1
         mov.b   r0,@r1                  /* set FM */
-        mov     #0x08,r0                /* vbi enabled */
+        mov     #0x0A,r0                /* vbi and cmd enabled */
         mov.b   r0,@(1,r1)              /* set int enables */
         mov     #0x10,r0
         ldc     r0,sr                   /* allow ints */
@@ -594,12 +594,64 @@ pri_cmd_irq:
 
         mov.l   pci_mars_adapter,r1
         mov.w   r0,@(0x1A,r1)           /* clear CMD IRQ */
+
+        ! handle wait in sdram
+        mov.l   pci_cmd_comm0,r1
+        mov.w   @r1,r0
+        mov.l   r0,@-r15                /* save COMM0 reg */
+        mov.w   @(2,r1),r0
+        mov.l   r0,@-r15                /* save COMM2 regs */
+        mov.w   pci_cmd_resp,r0
+        mov.w   r0,@r1                  /* respond to m68k */
+0:
+        mov.w   @r1,r2
+        cmp/eq  r2,r0
+        bt      0b                      /* wait for command from m68k */
+
+        mov.w   pci_cmd_exit,r0
+        mov.w   @r1,r2
+        cmp/eq  r2,r0
+        bf      3f                      /* not an exit command - call general handler */
+
+        mov.l   @r15+,r0
+        #mov.w   r0,@(2,r1)             /* do NOT restore COMM2 reg to avoid stomping */
+                                        /* on the value the m68k might have written in */
+                                        /* its command handler further up the call chain */
+        mov.l   @r15+,r0
+        mov.w   r0,@r1                  /* restore COMM0 reg */
+
+        rts
         nop
-        nop
-        nop
+3:
+        ! handle general CMD IRQ
+        sts.l   pr,@-r15
+        mov.l   r3,@-r15
+        mov.l   r4,@-r15
+        mov.l   r5,@-r15
+        mov.l   r6,@-r15
+        mov.l   r7,@-r15
+        sts.l   mach,@-r15
+        sts.l   macl,@-r15
+
+        mov.l   pci_cmd_handler,r0
+        jsr     @r0
         nop
 
-        ! handle CMD IRQ (remove nops if more than 8 cycles)
+        ! restore registers
+        lds.l   @r15+,macl
+        lds.l   @r15+,mach
+        mov.l   @r15+,r7
+        mov.l   @r15+,r6
+        mov.l   @r15+,r5
+        mov.l   @r15+,r4
+        mov.l   @r15+,r3
+        lds.l   @r15+,pr
+
+        mov.l   pci_cmd_comm0,r1
+        mov.l   @r15+,r0
+        mov.w   r0,@(2,r1)              /* restore COMM2 reg */
+        mov.l   @r15+,r0
+        mov.w   r0,@r1                  /* restore COMM0 reg */
 
         rts
         nop
@@ -609,6 +661,15 @@ pci_mars_adapter:
         .long   0x20004000
 pci_sh2_frtctl:
         .long   0xfffffe10
+pci_cmd_handler:
+        .long   _pri_cmd_handler
+
+pci_cmd_comm0:
+        .long   0x20004020
+pci_cmd_resp:
+        .word   0xA55A
+pci_cmd_exit:
+        .word   0xFFFE
 
 !-----------------------------------------------------------------------
 ! Primary PWM IRQ handler
@@ -770,12 +831,10 @@ sec_start:
         bt      1b
 
         mov.l   _sec_adapter,r1
-        mov     #0x00,r0
-        mov.b   r0,@(1,r1)              /* set int enables (different from primary despite same address!) */
-        mov     #0x0F,r0
-        shll2   r0
-        shll2   r0
-        ldc     r0,sr                   /* disallow ints */
+        mov     #0x02,r0                /* cmd enabled */
+        mov.b   r0,@(1,r1)              /* set int enables */
+        mov     #0x10,r0
+        ldc     r0,sr                   /* allow ints */
 
 ! purge cache, turn it on, and run secondary()
         mov.l   _sec_cctl,r0
@@ -952,12 +1011,56 @@ sec_cmd_irq:
 
         mov.l   sci_mars_adapter,r1
         mov.w   r0,@(0x1A,r1)           /* clear CMD IRQ */
+
+        ! handle wait in sdram
+        mov.l   sci_cmd_comm4,r1
+        mov.w   @r1,r0
+        mov.l   r0,@-r15                /* save COMM4 reg */
+        mov.w   sci_cmd_resp,r0
+        mov.w   r0,@r1                  /* respond to m68k */
+0:
+        mov.w   @r1,r2
+        cmp/eq  r2,r0
+        bt      0b                      /* wait for command from m68k */
+
+        mov.w   sci_cmd_exit,r0
+        mov.w   @r1,r2
+        cmp/eq  r2,r0
+        bf      3f                      /* not an exit command - call general handler */
+
+        mov.l   @r15+,r0
+        mov.w   r0,@r1                  /* restore COMM4 reg */
+        
+        rts
         nop
-        nop
-        nop
+3:
+        ! handle general CMD IRQ
+        sts.l   pr,@-r15
+        mov.l   r3,@-r15
+        mov.l   r4,@-r15
+        mov.l   r5,@-r15
+        mov.l   r6,@-r15
+        mov.l   r7,@-r15
+        sts.l   mach,@-r15
+        sts.l   macl,@-r15
+
+        mov.l   sci_cmd_handler,r0
+        jsr     @r0
         nop
 
-        ! handle CMD IRQ (remove nops if more than 8 cycles)
+        ! restore registers
+        lds.l   @r15+,macl
+        lds.l   @r15+,mach
+        mov.l   @r15+,r7
+        mov.l   @r15+,r6
+        mov.l   @r15+,r5
+        mov.l   @r15+,r4
+        mov.l   @r15+,r3
+        lds.l   @r15+,pr
+
+        mov.l   sci_cmd_comm4,r1
+        mov.l   @r15+,r0
+        mov.w   r0,@r1                  /* restore COMM4 reg */
 
         rts
         nop
@@ -967,6 +1070,15 @@ sci_mars_adapter:
         .long   0x20004000
 sci_sh2_frtctl:
         .long   0xfffffe10
+sci_cmd_handler:
+        .long   _sec_cmd_handler
+
+sci_cmd_comm4:
+        .long   0x20004024
+sci_cmd_resp:
+        .word   0xA55A
+sci_cmd_exit:
+        .word   0xFFFE
 
 !-----------------------------------------------------------------------
 ! Secondary PWM IRQ handler

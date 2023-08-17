@@ -197,8 +197,6 @@ int main(void)
     unsigned bytesread, bps, maxbps;
     int refresh_rate;
 
-    SetSH2SR(1);
-
     SH2_WDT_WTCSR_TCNT = 0x5A00; /* WDT TCNT = 0 */
     SH2_WDT_WTCSR_TCNT = 0xA53E; /* WDT TCSR = clr OVF, IT mode, timer on, clksel = Fs/4096 */
 

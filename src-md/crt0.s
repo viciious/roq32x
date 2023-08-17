@@ -5,6 +5,37 @@
 
 | 0x880800 - entry point for reset/cold-start
 
+        .macro  sh2_wait
+        move.w  #0x0003,0xA15102    /* assert CMD INT to both SH2s */
+        move.w  #0xA55A,d2
+99:
+        cmp.w   0xA15120,d2         /* wait on handshake in COMM0 */
+        bne.b   99b
+98:
+        cmp.w   0xA15124,d2         /* wait on handshake in COMM4 */
+        bne.b   98b
+        .endm
+
+        .macro  sh2_cont
+        move.w  #0xFFFE,d0          /* command = exit irq */
+        move.w  d0,0xA15120
+        move.w  d0,0xA15124
+99:
+        cmp.w   0xA15120,d0         /* wait on exit */
+        beq.b   99b
+98:
+        cmp.w   0xA15124,d0         /* wait on exit */
+        beq.b   98b
+        .endm
+
+        .macro  set_rv
+        bset    #0,0xA15107         /* set RV */
+        .endm
+
+        .macro  clr_rv
+        bclr    #0,0xA15107         /* clear RV */
+        .endm
+
         .global _start
 _start:
 
@@ -132,7 +163,7 @@ init_hardware:
         move.w  #0x0100,0xA11200    /* Z80 deassert reset */
 
 | wait on Mars side
-        move.b  #0,0xA15107             /* clear RV - allow SH2 to access ROM */
+        clr_rv                          /* clear RV - allow SH2 to access ROM */
 0:
         cmp.l   #0x4D5F4F4B,0xA15120    /* M_OK */
         bne.b   0b                      /* wait for master ok */
@@ -197,9 +228,9 @@ read_long:
 
         .global do_main
 do_main:
-        move.b  #1,0xA15107         /* set RV */
+        set_rv                      /* set RV */
         move.b  #2,0xA130F1         /* SRAM disabled, write protected */
-        move.b  #0,0xA15107         /* clear RV */
+        clr_rv                      /* clear RV */
 
         move.w  0xA15100,d0
         or.w    #0x8000,d0
@@ -237,11 +268,11 @@ read_sram:
         moveq   #0,d0
         move.w  0xA15122,d0         /* COMM2 holds offset */
         lea     0x200000,a0
-        move.b  #1,0xA15107         /* set RV */
+        set_rv                      /* set RV */
         move.b  #3,0xA130F1         /* SRAM enabled, write protected */
         move.b  1(a0,d0.l),d1       /* read SRAM */
         move.b  #2,0xA130F1         /* SRAM disabled, write protected */
-        move.b  #0,0xA15107         /* clear RV */
+        clr_rv                      /* clear RV */
         move.w  d1,0xA15122         /* COMM2 holds return byte */
         move.w  #0,0xA15120         /* done */
         move.w  #0x2000,sr          /* enable ints */
@@ -252,26 +283,31 @@ write_sram:
         moveq   #0,d1
         move.w  0xA15122,d1         /* COMM2 holds offset */
         lea     0x200000,a0
-        move.b  #1,0xA15107         /* set RV */
+        set_rv                      /* set RV */
         move.b  #1,0xA130F1         /* SRAM enabled, write enabled */
         move.b  d0,1(a0,d1.l)       /* write SRAM */
         move.b  #2,0xA130F1         /* SRAM disabled, write protected */
-        move.b  #0,0xA15107         /* clear RV */
+        clr_rv                      /* clear RV */
         move.w  #0,0xA15120         /* done */
         move.w  #0x2000,sr          /* enable ints */
         bra     main_loop
 
 set_bankpage:
-        move.w  #0x2700,sr          /* disable ints */
+        move.w  d0,d1
         andi.l  #0x07,d0            /* bank number */
-        move.w  0xA15122,d1         /* COMM2 holds page number */
+        lsr.w   #3,d1               /* page number */
+        andi.l  #0x1f,d1
         lea     0xA130F0,a0
         add.l   d0,d0
-        move.b  #1,0xA15107         /* set RV */
-        move.b  d1,1(a0,d0.l)
-        move.b  #0,0xA15107         /* set RV */
-        move.w  #0,0xA15120         /* release SH2 now */
+        lea     1(a0,d0.l),a0
+        move.w  #0x2700,sr          /* disable ints */
+        sh2_wait
+        set_rv
+        move.b  d1,(a0)
+        clr_rv
+        sh2_cont
         move.w  #0x2000,sr          /* enable ints */
+        move.w  #0,0xA15120         /* release SH2 now */
         bra     main_loop
 
 start_music:
@@ -595,7 +631,7 @@ mky_err:
 
 
 reset_banks:
-        move.b  #1,0xA15107         /* set RV */
+        set_rv                      /* set RV */
         move.b  #1,0xA130F3         /* bank for 0x080000-0x0FFFFF */
         move.b  #2,0xA130F5         /* bank for 0x100000-0x17FFFF */
         move.b  #3,0xA130F7         /* bank for 0x180000-0x1FFFFF */
@@ -603,7 +639,7 @@ reset_banks:
         move.b  #5,0xA130FB         /* bank for 0x280000-0x2FFFFF */
         move.b  #6,0xA130FD         /* bank for 0x300000-0x37FFFF */
         move.b  #7,0xA130FF         /* bank for 0x380000-0x3FFFFF */
-        move.b  #0,0xA15107         /* set RV */
+        clr_rv                      /* clear RV */
         rts
 
 
