@@ -11,6 +11,7 @@
  */
 
 #include "32x.h"
+#include "hw_32x.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -21,6 +22,7 @@ static int MX = 40, MY = 25;
 static int init = 0;
 static unsigned short fgc = 0, bgc = 0;
 static unsigned char fgs = 0, bgs = 0;
+static unsigned screen_pitch = 320;
 
 static volatile unsigned int mars_vblank_count = 0;
 
@@ -31,6 +33,7 @@ volatile unsigned short currentFB = 0;
 
 #define UNCACHED_CURFB (*(short *)((int)&currentFB|0x20000000))
 
+void pri_vbi_handler(void) HW32X_ATTR_SDRAM;
 void pri_cmd_handler(void);
 void sec_cmd_handler(void);
 
@@ -72,6 +75,11 @@ void Hw32xSetBGColor(int s, int r, int g, int b)
     bgs = s;
     bgc = COLOR(r, g, b);
     palette[bgs] = bgc;
+}
+
+void Hw32xSetScreenPitch(unsigned pitch)
+{
+    screen_pitch = pitch;
 }
 
 void Hw32xInit(int vmode, int lineskip)
@@ -219,7 +227,7 @@ void Hw32xScreenSetXY(int x, int y)
         Y = y;
 }
 
-void Hw32xScreenClear()
+void Hw32xScreenClear(void)
 {
     int i;
     int l = (init == MARS_VDP_MODE_256) ? 320*224/2 + 0x100 : 320*200 + 0x100;
@@ -258,7 +266,7 @@ static void debug_put_char_16(int x, int y, unsigned char ch)
     }
 
     vram = 0x100 + x * 8;
-    vram += (y * 8 * 320);
+    vram += (y * 8 * screen_pitch);
 
     font = &msx[ (int)ch * 8];
 
@@ -273,7 +281,7 @@ static void debug_put_char_16(int x, int y, unsigned char ch)
                 fb[vram_ptr] = bgc;
             vram_ptr++;
         }
-        vram += 320;
+        vram += screen_pitch;
     }
 }
 
@@ -290,7 +298,7 @@ static void debug_put_char_8(int x, int y, unsigned char ch)
     }
 
     vram = 0x200 + x * 8;
-    vram += (y * 8 * 320);
+    vram += (y * 8 * screen_pitch);
 
     font = &msx[ (int)ch * 8];
 
@@ -305,7 +313,7 @@ static void debug_put_char_8(int x, int y, unsigned char ch)
                 fb[vram_ptr] = bgs;
             vram_ptr++;
         }
-        vram += 320;
+        vram += screen_pitch;
     }
 }
 

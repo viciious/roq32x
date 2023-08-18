@@ -22,18 +22,22 @@ const int u0344C_ = 0.344136 * YUV_MUL2;
 const int u1772C_ = 1.772000 * YUV_MUL2;
 
 unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
-    unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height, unsigned buf_incr, const short breakval)
+    unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height, 
+    unsigned pitch, const short breakval)
 {
     unsigned x, y;
     unsigned char* pb = ppb;
+
+    pitch /= 2;
 
     for (y = start_y; y < height; y += 2)
     {
         if (start_y == 0 && MARS_SYS_COMM4 == breakval) break;
 
+        int* d = (int*)pbuf;
+
         for (x = 0; x < width; x += 2)
         {
-            int i;
             int u, v;
 
             u = pb[0] - 128;
@@ -46,134 +50,136 @@ unsigned blit_roqframe_normal(unsigned start_y, unsigned short* pbuf,
             int u352_ = u0344C_ * u;
             int uv_ = u352_ + v731_ - YUV_NUDGE2;
 
-            int* d = (int*)pbuf;
             unsigned char* py = ppa;
 
-            for (i = 0; i < 2; i++)
-            {
-                int pix = 0;
-                unsigned yy = *(uint16_t *)py;
-                unsigned t, ymul, r, g, b;
+            int pix;
+            unsigned yy;
+            unsigned ymul, r, g, b;
 
-                ymul = (yy&0xff) << YUV_FIX2;
-
-                t = ymul + v1436_;
-                r = YUVClip8(t);
-
-                t = ymul - uv_;
-                g = YUVClip8(t);
-
-                t = ymul + u1815_;
-                b = YUVClip8(t);
-
-                pix = YUVRGB555(r, g, b);
+            yy = *(uint16_t *)py;
+            ymul = (yy&0xff) << YUV_FIX2;
+            r = YUVClip8(ymul + v1436_), g = YUVClip8(ymul - uv_), b = YUVClip8(ymul + u1815_);
+            pix = YUVRGB555(r, g, b);
 
 #if YUV_FIX2 <= 8
-                ymul = (yy & ~0xff)>>(8-YUV_FIX2);
+            ymul = (yy & ~0xff)>>(8-YUV_FIX2);
 #else
-                ymul = (yy & ~0xff)<<(YUV_FIX2-8);
+            ymul = (yy & ~0xff)<<(YUV_FIX2-8);
 #endif
-                t = ymul + v1436_;
-                r = YUVClip8(t);
+            r = YUVClip8(ymul + v1436_), g = YUVClip8(ymul - uv_), b = YUVClip8(ymul + u1815_);
+            pix |= YUVRGB555(r, g, b) << 16;
+            d[0] = pix;
 
-                t = ymul - uv_;
-                g = YUVClip8(t);
+            yy = *((uint16_t *)(py + width));
+            ymul = (yy&0xff) << YUV_FIX2;
+            r = YUVClip8(ymul + v1436_), g = YUVClip8(ymul - uv_), b = YUVClip8(ymul + u1815_);
+            pix = YUVRGB555(r, g, b);
 
-                t = ymul + u1815_;
-                b = YUVClip8(t);
-
-                pix |= YUVRGB555(r, g, b) << 16;
-
-                *d = pix;
-                d += 160;
-                py += width;
-            }
+#if YUV_FIX2 <= 8
+            ymul = (yy & ~0xff)>>(8-YUV_FIX2);
+#else
+            ymul = (yy & ~0xff)<<(YUV_FIX2-8);
+#endif
+            r = YUVClip8(ymul + v1436_), g = YUVClip8(ymul - uv_), b = YUVClip8(ymul + u1815_);
+            pix |= YUVRGB555(r, g, b) << 16;
+            d[pitch] = pix;
 
             ppa += 2;
-            pbuf += 2;
+            d++;
             pb += 2;
         }
 
         ppa += width;
-        pbuf += buf_incr;
+        pbuf += pitch*4;
     }
 
     return y + 2;
 }
 
 unsigned blit_roqframe_stretch_x2(unsigned start_y, unsigned short* pbuf,
-    unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height, unsigned buf_incr, const short breakval)
+    unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height,
+    unsigned pitch, const short breakval)
 {
     unsigned x, y;
-    unsigned char* pa[2] = { ppa, NULL };
     unsigned char* pb = ppb;
 
-    pa[1] = pa[0] + width;
+    pitch /= 2;
 
     for (y = start_y; y < height; y += 2)
     {
         if (start_y == 0 && MARS_SYS_COMM4 == breakval) break;
 
+        int* d = (int*)pbuf;
+
         for (x = 0; x < width; x += 2)
         {
-            unsigned i, j, k;
             int u, v;
 
             u = pb[0] - 128;
             v = pb[1] - 128;
 
-            unsigned v1436_ = v1402C_ * v + YUV_NUDGE2;
-            unsigned v731_ = v0714C_ * v + YUV_NUDGE2;
+            int v1436_ = v1402C_ * v + YUV_NUDGE2;
+            int u1815_ = u1772C_ * u + YUV_NUDGE2;
 
-            unsigned u352_ = u0344C_ * u;
-            unsigned u1815_ = u1772C_ * u;
-            unsigned uv_ = u352_ + v731_ - YUV_NUDGE2;
+            int v731_ = v0714C_ * v;
+            int u352_ = u0344C_ * u;
+            int uv_ = u352_ + v731_ - YUV_NUDGE2;
 
-            unsigned short* d = pbuf;
+            unsigned char* py = ppa;
 
-            for (i = 0; i < 2; i++)
-            {
-                unsigned char* py = pa[i];
+            unsigned pix;
+            unsigned yy;
+            unsigned ymul, r, g, b;
 
-                for (j = 0, k = 0; j < 2; j++, k += 2)
-                {
-                    unsigned t;
-                    unsigned ymul = py[j] << YUV_FIX2;
+            yy = *(uint16_t *)py;
+            ymul = (yy&0xff) << YUV_FIX2;
+            r = YUVClip8(ymul + v1436_), g = YUVClip8(ymul - uv_), b = YUVClip8(ymul + u1815_);
+            pix = YUVRGB555(r, g, b);
+            pix |= (pix << 16);
+            d[1] = pix;
 
-                    t = ymul + v1436_;
-                    unsigned r = YUVClip8(t);
+#if YUV_FIX2 <= 8
+            ymul = (yy & ~0xff)>>(8-YUV_FIX2);
+#else
+            ymul = (yy & ~0xff)<<(YUV_FIX2-8);
+#endif
+            r = YUVClip8(ymul + v1436_), g = YUVClip8(ymul - uv_), b = YUVClip8(ymul + u1815_);
+            pix = YUVRGB555(r, g, b);
+            pix |= (pix << 16);
+            d[0] = pix;
 
-                    t = ymul - uv_;
-                    unsigned g = YUVClip8(t);
+            yy = *((uint16_t *)(py + width));
+            ymul = (yy&0xff) << YUV_FIX2;
+            r = YUVClip8(ymul + v1436_), g = YUVClip8(ymul - uv_), b = YUVClip8(ymul + u1815_);
+            pix = YUVRGB555(r, g, b);
+            pix |= (pix << 16);
+            d[pitch+1] = pix;
 
-                    t = ymul + u1815_;
-                    unsigned b = YUVClip8(t);
+#if YUV_FIX2 <= 8
+            ymul = (yy & ~0xff)>>(8-YUV_FIX2);
+#else
+            ymul = (yy & ~0xff)<<(YUV_FIX2-8);
+#endif
+            r = YUVClip8(ymul + v1436_), g = YUVClip8(ymul - uv_), b = YUVClip8(ymul + u1815_);
+            pix = YUVRGB555(r, g, b);
+            pix |= (pix << 16);
+            d[pitch+0] = pix;
 
-                    unsigned val = YUVRGB555(r, g, b);
-
-                    d[k + 0] = val;
-                    d[k + 1] = val;
-                }
-
-                d += 320;
-            }
-
-            pa[0] += 2;
-            pa[1] += 2;
-            pbuf += 4;
+            ppa += 2;
+            d += 2;
             pb += 2;
         }
 
-        pa[0] += width;
-        pa[1] += width;
-        pbuf += buf_incr;
+        ppa += width;
+        pbuf += pitch*4;
     }
 
     return y + 2;
 }
 
 unsigned blit_roqframe_downsampled(unsigned start_y, unsigned short* pbuf,
-    unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height, unsigned buf_incr, const short breakval)
+    unsigned char* ppa, unsigned char* ppb, unsigned width, unsigned height,
+    unsigned pitch, const short breakval)
 {
     unsigned x, y;
     unsigned char* pa[2] = { ppa, NULL };
@@ -184,6 +190,8 @@ unsigned blit_roqframe_downsampled(unsigned start_y, unsigned short* pbuf,
     for (y = start_y; y < height; y += 2)
     {
         if (start_y == 0 && MARS_SYS_COMM4 == breakval) break;
+
+        unsigned short* d = (unsigned short*)pbuf;
 
         for (x = 0; x < width; x += 2)
         {
@@ -217,38 +225,36 @@ unsigned blit_roqframe_downsampled(unsigned start_y, unsigned short* pbuf,
             unsigned b = YUVClip8(t);
 
             unsigned rgb = YUVRGB555(r, g, b);
-            pbuf[0] = rgb;
-            pbuf[1] = rgb;
-            pbuf[320+0] = rgb;
-            pbuf[320+1] = rgb;
+            d[0] = rgb;
+            d[1] = rgb;
+            d[pitch+0] = rgb;
+            d[pitch+1] = rgb;
 
             pa[0] += 2;
             pa[1] += 2;
-            pbuf += 2;
+            d += 2;
             pb += 2;
         }
 
         pa[0] += width;
         pa[1] += width;
-        pbuf += buf_incr;
+        pbuf += pitch*2;
     }
 
     return y + 2;
 }
 
-unsigned blit_roqframe(roq_info* ri, int blit_mode, unsigned frame, unsigned y_start, unsigned height, short breakval)
+unsigned blit_roqframe(roq_info* ri, int blit_mode, unsigned frame, unsigned y_start, unsigned height, 
+    unsigned breakval, unsigned stretch)
 {
     unsigned short* buf;
     unsigned y;
-    unsigned stretch;
     unsigned char* pa = ri->y[frame];
     unsigned char* pb = ri->uv[frame];
     unsigned width = ri->width;
-    unsigned buf_incr;
+    unsigned pitch;
 
-    stretch = 1;
-    if (width <= BLIT_STRETCH_WIDTH_X2)
-        stretch = 2;
+    pitch = 160 + width * stretch / 2;
 
     buf = (unsigned short *)&MARS_FRAMEBUFFER;
     buf += 0x100;
@@ -257,22 +263,18 @@ unsigned blit_roqframe(roq_info* ri, int blit_mode, unsigned frame, unsigned y_s
     pa += y_start * width;
     pb += (y_start >> 1) * width;
 
-    buf_incr = 640 - width * stretch;
-
-    buf += y_start * 320;
-    if (ri->display_height < 200)
-        buf += (200 - ri->display_height * stretch) / 2 * 320;
+    buf += y_start * pitch;
     if (width < 320)
         buf += (320 - width * stretch) / 2;
 
     if (stretch == 2)
-        return blit_roqframe_stretch_x2(y, buf, pa, pb, width, height, buf_incr, breakval);
+        return blit_roqframe_stretch_x2(y, buf, pa, pb, width, height, pitch, breakval);
 
     switch (blit_mode)
     {
     case 1:
-        return blit_roqframe_downsampled(y, buf, pa, pb, width, height, buf_incr, breakval);
+        return blit_roqframe_downsampled(y, buf, pa, pb, width, height, pitch, breakval);
     default:
-        return blit_roqframe_normal(y, buf, pa, pb, width, height, buf_incr, breakval);
+        return blit_roqframe_normal(y, buf, pa, pb, width, height, pitch, breakval);
     }
 }

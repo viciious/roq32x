@@ -11,7 +11,7 @@ static roq_file grf;
 
 static int blit_mode = 0;
 
-int secondary_task(int cmd) RoQ_ATTR_SDRAM;
+int secondary_task(int cmd, int arg) RoQ_ATTR_SDRAM;
 void secondary(void) RoQ_ATTR_SDRAM;
 
 static void unswitch_ROMbanks(roq_file* fp) RoQ_ATTR_SDRAM;
@@ -19,7 +19,7 @@ static void switch_ROMbanks(roq_file* fp, int readhead) RoQ_ATTR_SDRAM;
 
 // Slave SH2 support code ----------------------------------------------
 
-int secondary_task(int cmd)
+int secondary_task(int cmd, int arg)
 {
     switch (cmd) {
     case 1:
@@ -30,7 +30,7 @@ int secondary_task(int cmd)
 
         ClearCache();
 
-        MARS_SYS_COMM6 = blit_roqframe(gri, blit_mode, 1, 0, gri->display_height, 0xff);
+        MARS_SYS_COMM6 = blit_roqframe(gri, blit_mode, 1, 0, gri->display_height, 0xff, arg);
         return 1;
     case 3:
     {
@@ -44,7 +44,7 @@ int secondary_task(int cmd)
         height = (gri->display_height + y) / 2 + 1;
         height &= ~1;
 
-        blit_roqframe(gri, blit_mode, 0, y, height, 0xfe);
+        blit_roqframe(gri, blit_mode, 0, y, height, 0xfe, arg);
     }
     return 0;
 
@@ -63,18 +63,19 @@ void secondary(void)
     ClearCache();
 
     while (1) {
-        int cmd;
+        unsigned cmd;
 
         while ((cmd = MARS_SYS_COMM4) == 0) {}
 
-        int res = secondary_task(cmd);
+        int res = secondary_task(cmd & 0xff, cmd>>8);
         if (res > 0) {
             MARS_SYS_COMM4 = 0;
         }
     }
 }
 
-void display(int framecount, int hudenable, int fpscount, int readtics, int totaltics, int bps, int maxbps, int clearhud)
+void display(int framecount, int hudenable, int fpscount, int readtics, int totaltics, int bps, 
+    int maxbps, int clearhud, int stretch)
 {
     int y = 0;
     int height = 0;
@@ -93,18 +94,18 @@ void display(int framecount, int hudenable, int fpscount, int readtics, int tota
     if (y < gri->display_height)
     {
         MARS_SYS_COMM6 = y;
-        MARS_SYS_COMM4 = 3;
+        MARS_SYS_COMM4 = (stretch<<8)|0x03;
 
         height = (gri->display_height - y) / 2 + 1;
         height &= ~1;
-        blit_roqframe(gri, blit_mode, 0, y + height, gri->display_height, 0xfe);
+        blit_roqframe(gri, blit_mode, 0, y + height, gri->display_height, 0xfe, stretch);
     }
 
     if (clearhud) {
         Hw32xScreenClearLine(23);
     }
 
-    Hw32xScreenSetXY(0, 23);
+    Hw32xScreenSetXY(0, 0);
 
     switch (hudenable) {
     case 1:
@@ -124,7 +125,7 @@ void display(int framecount, int hudenable, int fpscount, int readtics, int tota
 
 nextframe:
     MARS_SYS_COMM6 = 0;
-    MARS_SYS_COMM4 = 2;
+    MARS_SYS_COMM4 = (stretch<<8)|2;
 }
 
 static void unswitch_ROMbanks(roq_file* fp)
@@ -217,7 +218,13 @@ int main(void)
 
     refresh_rate = MARS_VDP_DISPMODE & MARS_NTSC_FORMAT ? 60 : 50;
 
-    if ((gri = roq_open(open_ROMroq(), 200, switch_ROMbanks, refresh_rate)) == NULL) return -1;
+    if ((gri = roq_open(open_ROMroq(), switch_ROMbanks, refresh_rate)) == NULL)
+    {
+        Hw32xScreenPrintf("Failed to open video");
+        Hw32xScreenFlip(1);
+        while (1);
+        return -1;
+    }
 
     blit_mode = 0;
 
@@ -226,6 +233,9 @@ int main(void)
 
     while (1)
     {
+        int stretch, pitch, header, footer, stretch_height;
+        volatile unsigned short* lines = &MARS_FRAMEBUFFER;
+
 start:
         fpscount = 0;
         framecount = 0;
@@ -237,25 +247,27 @@ start:
         bps = 0;
         maxbps = 0;
 
-        if (gri->width <= BLIT_STRETCH_WIDTH_X2)
+        stretch = gri->width <= BLIT_STRETCH_WIDTH_X2 ? 2 : 1;
+        pitch = gri->width*stretch + (320 - gri->width*stretch)/2;
+        stretch_height = gri->display_height * stretch;
+        header = (224 - stretch_height) / 2;
+        footer = header + stretch_height;
+
+        for (i = 0; i < 2; i++)
         {
-            volatile unsigned short* lines = &MARS_FRAMEBUFFER;
-
-            for (i = 0; i < 2; i++)
+            for (j = 0; j < 256; j++)
             {
-                for (j = 0; j < 256; j++)
-                {
-                    if (j < 180)
-                        lines[j] = (j / 2) * 320 + 0x100;
-                    else if (j < 200)
-                        lines[j] = j * 320 + 0x100;
-                    else
-                        lines[j] = 199 * 320 + 0x100;
-                }
-
-                Hw32xScreenClear();
+                if (j < header)
+                    lines[j] = stretch_height * pitch + 0x100;
+                else if (j < footer)
+                    lines[j] = ((j-header)/stretch) * pitch + 0x100;
+                else
+                    lines[j] = stretch_height * pitch + 0x100;
             }
+            Hw32xScreenClear();
         }
+
+        Hw32xSetScreenPitch(pitch);
 
         while (1) {
             int sec;
@@ -299,7 +311,7 @@ start:
                 if (ret == 0) {
                     while (MARS_SYS_COMM4 != 0);
                     close_ROMroq();
-                    if ((gri = roq_open(open_ROMroq(), 200, switch_ROMbanks, refresh_rate)) == NULL)
+                    if ((gri = roq_open(open_ROMroq(), switch_ROMbanks, refresh_rate)) == NULL)
                         return -1;
                     goto start;
                 }
@@ -311,7 +323,7 @@ start:
 
             readtics = Hw32xGetTicks() - readtics;
 
-            display(framecount, hud, fpscount, readtics, totaltics, bps, maxbps, clearhud);
+            display(framecount, hud, fpscount, readtics, totaltics, bps, maxbps, clearhud, stretch);
 
             clearhud--;
             if (clearhud < 0)

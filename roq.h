@@ -74,7 +74,7 @@ typedef struct {
 
 void roq_init(void);
 void roq_cleanup(void);
-roq_info *roq_open(roq_file *fp, int max_height, roq_bufferdata_t buf, int refresh_rate);
+roq_info *roq_open(roq_file *fp, roq_bufferdata_t buf, int refresh_rate);
 void roq_close(roq_info *ri);
 int roq_read_video(roq_info *ri, char loop);
 int roq_read_audio(roq_info *ri, char loop);

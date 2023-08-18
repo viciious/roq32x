@@ -43,7 +43,7 @@ extern void HwMdPutsf(int x, int y, int color, const char* format, ...);
 unsigned Hw32xGetTicks(void) HW32X_ATTR_SDRAM;
 void Hw32xSetBankPage(int bank, int page) HW32X_ATTR_SDRAM;
 
-void pri_vbi_handler(void) HW32X_ATTR_SDRAM;
+void Hw32xSetScreenPitch(unsigned pitch);
 
 #ifdef __cplusplus
 }
