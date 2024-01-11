@@ -10,7 +10,7 @@
 #define YUVClip8(v) (__builtin_expect((v) & ~YUV_MASK2, 0) ? (__builtin_expect((int)(v) < 0, 0) ? 0 : YUV_MASK2) : (v))
 #define YUVRGB555(r,g,b) ((((((r)) >> (10+(YUV_FIX2-7))))) | (((((g)) >> (5+(YUV_FIX2-7)))) & GMASK) | (((((b)) >> (0+(YUV_FIX2-7)))) & BMASK))
 
-const int YUV_FIX2 = 8;                   // fixed-point precision for YUV->RGB
+#define YUV_FIX2 8                   // fixed-point precision for YUV->RGB
 const int YUV_MUL2 = (1 << YUV_FIX2);
 const int YUV_NUDGE2 = /*(1 << (YUV_FIX2 - 1))*/0;
 const int YUV_MASK2 = (256 << YUV_FIX2) - 1;

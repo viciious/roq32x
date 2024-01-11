@@ -26,11 +26,12 @@
 #endif
 
 typedef struct {
-	union {
-		short y02[2];
-		char y0123[4];
-	};
-	short uv;
+	uint8_t y0123[4];
+	uint8_t uvb[2];
+} roq_yuvcell;
+
+typedef struct {
+	short rgb555[4];
 } roq_cell;
 
 typedef struct {
@@ -49,24 +50,35 @@ typedef struct {
 typedef void (*roq_bufferdata_t)(roq_file*, int readahead);
 
 typedef struct {
+	unsigned chunk_arg0, chunk_arg1;
+	unsigned vqflg;
+	unsigned vqflg_pos;
+	unsigned vqid;
+	int start_offset;
+	unsigned char *buf;
+	int chunk_size;
+	struct roq_info_s *ri;
+} roq_parse_ctx;
+
+typedef struct roq_info_s {
 	roq_file *fp;
 	int buf_size;
 	roq_cell cells[256];
 	roq_qcell qcells[256];
 	short snd_sqr_arr_[260];
+	//short viewportcopy[RoQ_MAX_WIDTH*RoQ_MAX_HEIGHT];
 	short *snd_sqr_arr;
 	long roq_start;
 	unsigned width, height, frame_num;
 	unsigned display_height;
 	unsigned char *y[2], *uv[2];
-	unsigned char y256[2][RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT] __attribute__((aligned(16)));
-	unsigned char uv256[2][RoQ_MAX_WIDTH * RoQ_MAX_HEIGHT / 4 * 2] __attribute__((aligned(16)));
 	unsigned int frame_bytes;
 	roq_bufferdata_t buffer;
+	short *framebuffer, *viewport;
+	int viewport_pitch;
 
-	unsigned chunk_arg0, chunk_arg1;
-	unsigned vqflg;
-	unsigned vqflg_pos;
+	roq_parse_ctx ctx[2];
+
 	unsigned framerate;
 } roq_info;
 
@@ -74,7 +86,7 @@ typedef struct {
 
 void roq_init(void);
 void roq_cleanup(void);
-roq_info *roq_open(roq_file *fp, roq_bufferdata_t buf, int refresh_rate);
+roq_info *roq_open(roq_file *fp, roq_bufferdata_t buf, int refresh_rate, short *framebuffer);
 void roq_close(roq_info *ri);
 int roq_read_video(roq_info *ri, char loop);
 int roq_read_audio(roq_info *ri, char loop);

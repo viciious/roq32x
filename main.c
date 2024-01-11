@@ -26,31 +26,22 @@ int secondary_task(int cmd, int arg)
         snddma_sec_init(RoQ_SAMPLE_RATE);
         return 1;
     case 2:
-        Hw32xScreenFlip(1);
-
-        ClearCache();
-
-        MARS_SYS_COMM6 = blit_roqframe(gri, blit_mode, 1, 0, gri->display_height, 0xff, arg);
         return 1;
     case 3:
-    {
-        int y;
-        int height;
-
-        y = MARS_SYS_COMM6;
-        //ClearCache();
-        MARS_SYS_COMM4 = 0;
-
-        height = (gri->display_height + y) / 2 + 1;
-        height &= ~1;
-
-        blit_roqframe(gri, blit_mode, 0, y, height, 0xfe, arg);
-    }
-    return 0;
-
+        return 1;
+    case 4:
+        ClearCache();
+        roq_read_vq((void *)(*(uintptr_t *)&MARS_SYS_COMM12), 1, MARS_SYS_COMM6);
+        return 1;
+    case 5:
+    //{
+    //    roq_info *ri = (void *)(*(uintptr_t *)&MARS_SYS_COMM12);
+    //    int size = ri->viewport_pitch*ri->height/2;
+	//    memcpy(ri->viewportcopy + size, ri->viewport + size, size*sizeof(short));
+    //}
+        return 1;
     case 0xff:
         return 1;
-
     default:
         break;
     }
@@ -84,22 +75,7 @@ void display(int framecount, int hudenable, int fpscount, int readtics, int tota
         goto nextframe;
     }
 
-    MARS_SYS_COMM4 = 0xff;
-    while (MARS_SYS_COMM4 != 0);
-
-    y = MARS_SYS_COMM6 - 2;
-    if (y < 0) y = 0;
-    if (y > gri->display_height) y = gri->display_height;
-
-    if (y < gri->display_height)
-    {
-        MARS_SYS_COMM6 = y;
-        MARS_SYS_COMM4 = (stretch<<8)|0x03;
-
-        height = (gri->display_height - y) / 2 + 1;
-        height &= ~1;
-        blit_roqframe(gri, blit_mode, 0, y + height, gri->display_height, 0xfe, stretch);
-    }
+    //blit_roqframe(gri, blit_mode, 0, height, gri->display_height, 0xfe, stretch);
 
     if (clearhud) {
         Hw32xScreenClearLine(23);
@@ -121,11 +97,11 @@ void display(int framecount, int hudenable, int fpscount, int readtics, int tota
         break;
     }
 
-    while (MARS_SYS_COMM4 != 0);
+    //while (MARS_SYS_COMM4 != 0);
 
 nextframe:
-    MARS_SYS_COMM6 = 0;
-    MARS_SYS_COMM4 = (stretch<<8)|2;
+    //MARS_SYS_COMM6 = 0;
+    //MARS_SYS_COMM4 = (stretch<<8)|2;
 }
 
 static void unswitch_ROMbanks(roq_file* fp)
@@ -197,6 +173,7 @@ int main(void)
     char paused = 0, hud = 0, clearhud = 0;
     unsigned bytesread, bps, maxbps;
     int refresh_rate;
+    short *framebuffer;
 
     SH2_WDT_WTCSR_TCNT = 0x5A00; /* WDT TCNT = 0 */
     SH2_WDT_WTCSR_TCNT = 0xA53E; /* WDT TCSR = clr OVF, IT mode, timer on, clksel = Fs/4096 */
@@ -218,7 +195,10 @@ int main(void)
 
     refresh_rate = MARS_VDP_DISPMODE & MARS_NTSC_FORMAT ? 60 : 50;
 
-    if ((gri = roq_open(open_ROMroq(), switch_ROMbanks, refresh_rate)) == NULL)
+    framebuffer = (short *)&MARS_FRAMEBUFFER;
+    framebuffer += 0x100;
+
+    if ((gri = roq_open(open_ROMroq(), switch_ROMbanks, refresh_rate, framebuffer)) == NULL)
     {
         Hw32xScreenPrintf("Failed to open video");
         Hw32xScreenFlip(1);
@@ -269,6 +249,8 @@ start:
 
         Hw32xSetScreenPitch(pitch);
 
+        Hw32xScreenFlip(0);
+
         while (1) {
             int sec;
             int ret = 1;
@@ -311,7 +293,7 @@ start:
                 if (ret == 0) {
                     while (MARS_SYS_COMM4 != 0);
                     close_ROMroq();
-                    if ((gri = roq_open(open_ROMroq(), switch_ROMbanks, refresh_rate)) == NULL)
+                    if ((gri = roq_open(open_ROMroq(), switch_ROMbanks, refresh_rate, framebuffer)) == NULL)
                         return -1;
                     goto start;
                 }
