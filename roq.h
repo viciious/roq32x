@@ -31,7 +31,10 @@ typedef struct {
 } roq_yuvcell;
 
 typedef struct {
-	short rgb555[4];
+	union {
+		short rgb555[4];
+		int rgb555x2[2];
+	};
 } roq_cell;
 
 typedef struct {

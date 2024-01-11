@@ -367,27 +367,32 @@ static int roq_apply_fcc(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 
 static int roq_apply_sld(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 {
-	int i, j;
+	int i;
 	roq_info* ri = ctx->ri;
 	unsigned pitch = ri->viewport_pitch;
 	roq_qcell *qcell = ri->qcells + (uint8_t)buf[0];
 	short *dst = ri->viewport + y * pitch + x;
+	short *dst2 = dst + pitch;
 
+	pitch *= 2;
 	for (i = 0; i < 4; i += 2)
 	{
 		roq_cell *cell0 = ri->cells + qcell->idx[i];
 		roq_cell *cell1 = ri->cells + qcell->idx[i+1];
 
-		for (j = 0; j < 4; j += 2)
-		{
-			dst[0] = dst[1] = cell0->rgb555[j], dst[2] = dst[3] = cell1->rgb555[j];
-			dst[4] = dst[5] = cell0->rgb555[j+1], dst[6] = dst[7] = cell1->rgb555[j+1];
-			dst += pitch;
+		dst[0] = dst[1] = dst2[0] = dst2[1] = cell0->rgb555[0];
+		dst[2] = dst[3] = dst2[2] = dst2[3] = cell1->rgb555[0];
+		dst[4] = dst[5] = dst2[4] = dst2[5] = cell0->rgb555[1];
+		dst[6] = dst[7] = dst2[6] = dst2[7] = cell1->rgb555[1];
+		dst += pitch;
+		dst2 += pitch;
 
-			dst[0] = dst[1] = cell0->rgb555[j], dst[2] = dst[3] = cell1->rgb555[j];
-			dst[4] = dst[5] = cell0->rgb555[j+1], dst[6] = dst[7] = cell1->rgb555[j+1];
-			dst += pitch;
-		}
+		dst[0] = dst[1] = dst2[0] = dst2[1] = cell0->rgb555[2];
+		dst[2] = dst[3] = dst2[2] = dst2[3] = cell1->rgb555[2];
+		dst[4] = dst[5] = dst2[4] = dst2[5] = cell0->rgb555[3];
+		dst[6] = dst[7] = dst2[6] = dst2[7] = cell1->rgb555[3];
+		dst += pitch;
+		dst2 += pitch;
 	}
 
 	return 1;
@@ -395,7 +400,7 @@ static int roq_apply_sld(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 
 static int roq_apply_cc(roq_parse_ctx* ctx, unsigned xp, unsigned yp, char* buf)
 {
-	int k;
+	unsigned k;
 	unsigned x, y;
 	int bpos = 0;
 
@@ -403,9 +408,11 @@ static int roq_apply_cc(roq_parse_ctx* ctx, unsigned xp, unsigned yp, char* buf)
 	{
 		unsigned vqid;
 
-		x = xp; y = yp;
-		if (k & 0x01) x += 4;
-		if (k & 0x02) y += 4;
+		x = (k & 1) * 4;
+		x += xp;
+
+		y = (k & 2) * 2;
+		y += yp;
 
 		bpos += roq_read_vqid(ctx, (uint8_t *)&buf[bpos], &vqid);
 
@@ -418,7 +425,7 @@ static int roq_apply_cc(roq_parse_ctx* ctx, unsigned xp, unsigned yp, char* buf)
 #if 1
 static int roq_apply_cc_mot(roq_parse_ctx* ctx, unsigned xp, unsigned yp, char* buf)
 {
-	int k;
+	unsigned k;
 	unsigned x, y;
 	int bpos = 0;
 
@@ -426,9 +433,11 @@ static int roq_apply_cc_mot(roq_parse_ctx* ctx, unsigned xp, unsigned yp, char* 
 	{
 		unsigned vqid;
 
-		x = xp; y = yp;
-		if (k & 0x01) x += 4;
-		if (k & 0x02) y += 4;
+		x = (k & 1) * 4;
+		x += xp;
+
+		y = (k & 2) * 2;
+		y += yp;
 
 		bpos += roq_read_vqid(ctx, (uint8_t *)&buf[bpos], &vqid);
 
@@ -456,16 +465,20 @@ static int roq_apply_cc2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 	int i;
 	roq_info* ri = ctx->ri;
 	unsigned pitch = ri->viewport_pitch;
-	short *dst = ri->viewport + y * pitch + x;
+	int *dst = (int *)(ri->viewport + y * pitch + x);
 
+	pitch /= 2;
 	for (i = 0; i < 4; i += 2)
 	{
 		roq_cell *cell0 = ri->cells + (uint8_t)buf[i];
 		roq_cell *cell1 = ri->cells + (uint8_t)buf[i+1];
 
-		dst[0] = cell0->rgb555[0], dst[1] = cell0->rgb555[1]; dst[2] = cell1->rgb555[0], dst[3] = cell1->rgb555[1];
+		dst[0] = cell0->rgb555x2[0];
+		dst[1] = cell1->rgb555x2[0];
 		dst += pitch;
-		dst[0] = cell0->rgb555[2], dst[1] = cell0->rgb555[3]; dst[2] = cell1->rgb555[2], dst[3] = cell1->rgb555[3];
+
+		dst[0] = cell0->rgb555x2[1];
+		dst[1] = cell1->rgb555x2[1];
 		dst += pitch;
 	}
 
