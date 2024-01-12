@@ -488,22 +488,22 @@ static int roq_apply_cc2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 void roq_read_vq(roq_parse_ctx *ctxs, int startctx, int numctxs)
 {
 	int i;
-	int xpos, ypos, bpos;
+	int xpos, ypos;
 	roq_parse_ctx *ctx;
-	int chunk_size = ctxs[0].chunk_size;
-	unsigned char *buf = ctxs[0].buf;
-	int width = ctxs[0].ri->width, height = ctxs[0].ri->height;
+	int width = ctxs[0].ri->width;
 
 	ypos = startctx * 16;
 	for (i = startctx; i < numctxs; i += 2)
 	{
 		int xp, yp;
+		int bpos;
+		unsigned char *buf;
 
 		ctx = &ctxs[i];
-		bpos = ctx->start_offset;
 		xpos = 0;
-		
-		while (bpos < chunk_size)
+		buf = ctx->buf;
+
+		for (bpos = 0; bpos < ctx->buf_len; )
 		{
 			for (yp = ypos; yp < ypos + 16; yp += 8)
 			{
@@ -511,8 +511,8 @@ void roq_read_vq(roq_parse_ctx *ctxs, int startctx, int numctxs)
 				{
 					bpos += roq_read_vqid(ctx, &buf[bpos], &ctx->vqid);
 					bpos += appliers[ctx->vqid](ctx, xp, yp, (char *)&buf[bpos]);
-					if (bpos >= chunk_size)
-						break;
+					if (bpos >= ctx->buf_len)
+						goto next;
 				}
 			}
 
@@ -520,10 +520,8 @@ void roq_read_vq(roq_parse_ctx *ctxs, int startctx, int numctxs)
 			if (xpos >= width)
 				break;
 		}
-
+next:
 		ypos += 32;
-		if (ypos >= height)
-			break;
 	}
 }
 
@@ -694,16 +692,13 @@ loop_start:
 	ctx.vqflg = 0;
 	ctx.vqflg_pos = 0;
 	ctx.vqid = RoQ_ID_MOT;
-	ctx.buf = buf;
-	ctx.start_offset = 0;
-	ctx.chunk_size = chunk_size;
 
 	bpos = xpos = ypos = 0;
 	while (bpos < chunk_size)
 	{
 		if (xpos == 0)
 		{
-			ctx.start_offset = bpos;
+			ctx.buf = &buf[bpos];
 			memcpy(&ctxs[numoffsets], &ctx, sizeof(ctx));
 		}
 
@@ -714,16 +709,22 @@ loop_start:
 				bpos += roq_read_vqid(&ctx, &buf[bpos], &ctx.vqid);
 				bpos += appliers_mot[ctx.vqid](&ctx, xp, yp, (char *)&buf[bpos]);
 				if (bpos >= chunk_size)
-					break;
+					goto next;
 			}
 		}
 
 		xpos += 16;
 		if (xpos >= ri->width || bpos >= chunk_size)
 		{
+next:
 			xpos = 0;
 			ypos += 16;
+			if (bpos > chunk_size)
+				bpos = chunk_size;
+
+			ctxs[numoffsets].buf_len = &buf[bpos] - ctx.buf;
 			numoffsets++;
+
 			if (ypos >= ri->height)
 				break;
 		}

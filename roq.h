@@ -57,9 +57,8 @@ typedef struct {
 	unsigned vqflg;
 	unsigned vqflg_pos;
 	unsigned vqid;
-	int start_offset;
 	unsigned char *buf;
-	int chunk_size;
+	int buf_len;
 	struct roq_info_s *ri;
 } roq_parse_ctx;
 
