@@ -79,9 +79,6 @@ typedef struct roq_info_s {
 	roq_bufferdata_t buffer;
 	short *framebuffer, *viewport;
 	int viewport_pitch;
-
-	roq_parse_ctx ctx[2];
-
 	unsigned framerate;
 } roq_info;
 

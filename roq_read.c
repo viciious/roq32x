@@ -239,8 +239,6 @@ roq_info* roq_open(roq_file* fp, roq_bufferdata_t buf, int refresh_rate, short *
 	ri->fp = fp;
 	ri->buffer = buf ? buf : roq_bufferdata_dummy;
 	ri->framebuffer = framebuffer;
-	ri->ctx[0].ri = ri;
-	ri->ctx[1].ri = ri;
 
 	if (roq_parse_file(fp, ri, refresh_rate)) return NULL;	
 	roq_on_first_frame(ri);
@@ -539,7 +537,7 @@ int roq_read_frame(roq_info* ri, char loop)
 	unsigned bpos, xpos, ypos, xp, yp;
 	unsigned char *buf;
 	int numoffsets = 0;
-	roq_parse_ctx *ctx, ctxs[20];
+	roq_parse_ctx ctx, ctxs[20];
 
 	ri->frame_bytes = 0;
 
@@ -690,31 +688,31 @@ loop_start:
 
 	buf = fp->rover;
 
-	ctx = &ri->ctx[0];
-	ctx->chunk_arg0 = chunk_arg0;
-	ctx->chunk_arg1 = chunk_arg1;
-	ctx->vqflg = 0;
-	ctx->vqflg_pos = 0;
-	ctx->vqid = RoQ_ID_MOT;
-	ctx->buf = buf;
-	ctx->start_offset = 0;
-	ctx->chunk_size = chunk_size;
+	ctx.ri = ri;
+	ctx.chunk_arg0 = chunk_arg0;
+	ctx.chunk_arg1 = chunk_arg1;
+	ctx.vqflg = 0;
+	ctx.vqflg_pos = 0;
+	ctx.vqid = RoQ_ID_MOT;
+	ctx.buf = buf;
+	ctx.start_offset = 0;
+	ctx.chunk_size = chunk_size;
 
 	bpos = xpos = ypos = 0;
 	while (bpos < chunk_size)
 	{
 		if (xpos == 0)
 		{
-			ctx->start_offset = bpos;
-			memcpy(&ctxs[numoffsets], ctx, sizeof(*ctx));
+			ctx.start_offset = bpos;
+			memcpy(&ctxs[numoffsets], &ctx, sizeof(ctx));
 		}
 
 		for (yp = ypos; yp < ypos + 16; yp += 8)
 		{
 			for (xp = xpos; xp < xpos + 16; xp += 8)
 			{
-				bpos += roq_read_vqid(ctx, &buf[bpos], &ctx->vqid);
-				bpos += appliers_mot[ctx->vqid](ctx, xp, yp, (char *)&buf[bpos]);
+				bpos += roq_read_vqid(&ctx, &buf[bpos], &ctx.vqid);
+				bpos += appliers_mot[ctx.vqid](&ctx, xp, yp, (char *)&buf[bpos]);
 				if (bpos >= chunk_size)
 					break;
 			}
