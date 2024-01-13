@@ -50,7 +50,7 @@ $(TARGET).32x: $(TARGET).elf
 	$(OBJC) -O binary $< temp2.bin
 	$(DD) if=temp2.bin of=temp.bin bs=64K conv=sync
 	rm -f temp3.bin
-	cat temp.bin roq/commercial.roq >>temp3.bin
+	cat temp.bin livesample_4.roq >>temp3.bin
 	$(DD) if=temp3.bin of=$@ bs=512K conv=sync
 
 $(TARGET).elf: $(OBJS)

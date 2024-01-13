@@ -601,9 +601,10 @@ loop_start:
 		case RoQ_SOUND_MONO:
 		{
 			int j = 0;
-			uint16_t* p;
+			int8_t* p;
 			int snd_left;
 			int total_samples = chunk_size;
+			short *snd_sqr_arr = ri->snd_sqr_arr;
 
 			snd_left = (int16_t)((chunk_arg1 << 8) | chunk_arg0);
 
@@ -613,22 +614,17 @@ loop_start:
 				if (num_samples > MAX_SAMPLES) 
 					num_samples = MAX_SAMPLES;
 
-				p = snddma_get_buf_mono(num_samples);
+				p = snddma_get_buf_mono(num_samples, snd_left, snd_sqr_arr);
 				if (!p)
 					break;
 
 				for (j = 0; j < num_samples; j++)
-				{
-					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
-					if (snd_left < -32768) snd_left = -32768;
-					else if (snd_left >  32767) snd_left =  32767;
-
-					*p++ = s16pcm_to_u16pwm(snd_left);
-				}
+					*p++ = roq_fgetsc(fp);
 
 				snddma_submit();
 
 				i += num_samples;
+				snd_sqr_arr = NULL;
 			}
 		}
 			break;
@@ -636,9 +632,10 @@ loop_start:
 		case RoQ_SOUND_STEREO:
 		{
 			int j = 0;
-			uint16_t *p;
+			int8_t *p;
 			int snd_left, snd_right;
 			int total_samples = chunk_size / 2;
+			short *snd_sqr_arr = ri->snd_sqr_arr;
 
 			snd_left = (int16_t)(chunk_arg1 << 8);
 			snd_right = (int16_t)(chunk_arg0 << 8);
@@ -649,27 +646,20 @@ loop_start:
 				if (num_samples > MAX_SAMPLES)
 					num_samples = MAX_SAMPLES;
 
-				p = snddma_get_buf_stereo(num_samples);
+				p = snddma_get_buf_stereo(num_samples, snd_left, snd_right, snd_sqr_arr);
 				if (!p)
 					break;
 
 				for (j = 0; j < num_samples; j++)
 				{
-					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
-					if (snd_left < -32768) snd_left = -32768;
-					else if (snd_left >  32767) snd_left =  32767;
-
-					snd_right += ri->snd_sqr_arr[roq_fgetsc(fp)];
-					if (snd_right < -32768) snd_right = -32768;
-					else if (snd_right >  32767) snd_right =  32767;
-
-					*p++ = s16pcm_to_u16pwm(snd_left);
-					*p++ = s16pcm_to_u16pwm(snd_right);
+					*p++ = roq_fgetsc(fp);
+					*p++ = roq_fgetsc(fp);
 				}
 
 				snddma_submit();
 
 				i += num_samples;
+				snd_sqr_arr = NULL;
 			}
 		}
 		break;
