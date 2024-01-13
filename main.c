@@ -30,15 +30,15 @@ int secondary_task(int cmd, int arg)
     case 3:
         return 1;
     case 4:
-        ClearCache();
-        roq_read_vq((void *)(*(uintptr_t *)&MARS_SYS_COMM12), 1, MARS_SYS_COMM6);
+        //ClearCache();
+        //roq_read_vq((void *)(*(uintptr_t *)&MARS_SYS_COMM12), 1, arg, 0);
         return 1;
     case 5:
-    //{
-    //    roq_info *ri = (void *)(*(uintptr_t *)&MARS_SYS_COMM12);
-    //    int size = ri->viewport_pitch*ri->height/2;
-	//    memcpy(ri->viewportcopy + size, ri->viewport + size, size*sizeof(short));
-    //}
+    {
+        roq_info *ri = (void *)(*(uintptr_t *)&MARS_SYS_COMM12);
+        int size = ri->viewport_pitch*ri->height/2;
+	    memcpy(ri->viewportcopy + size, ri->viewport + size, size*sizeof(short));
+    }
         return 1;
     case 0xff:
         return 1;
@@ -174,6 +174,19 @@ int main(void)
     unsigned bytesread, bps, maxbps;
     int refresh_rate;
     short *framebuffer;
+
+    // init DMA channel 0 & 1
+    SH2_DMA_SAR0 = 0;
+    SH2_DMA_DAR0 = 0;
+    SH2_DMA_TCR0 = 0;
+    SH2_DMA_CHCR0 = 0;
+    SH2_DMA_DRCR0 = 0;
+    SH2_DMA_SAR1 = 0;
+    SH2_DMA_DAR1 = 0;
+    SH2_DMA_TCR1 = 0;
+    SH2_DMA_CHCR1 = 0;
+    SH2_DMA_DRCR1 = 0;
+    SH2_DMA_DMAOR = 1; // enable DMA
 
     SH2_WDT_WTCSR_TCNT = 0x5A00; /* WDT TCNT = 0 */
     SH2_WDT_WTCSR_TCNT = 0xA53E; /* WDT TCSR = clr OVF, IT mode, timer on, clksel = Fs/4096 */

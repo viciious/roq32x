@@ -170,7 +170,8 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int refresh_rate)
 	ri->viewport = ri->framebuffer;
 	if (ri->width < 320)
 		ri->viewport += (320 - ri->width) / 2;
-	ri->viewport_pitch = 160 + ri->width * 1 / 2;
+	ri->viewport = (void *)((uintptr_t)ri->viewport & ~15);
+	ri->viewport_pitch = (160 + ri->width / 2 + 15) & ~15;
 
 	fp->rover = start_rover;
 	roq_fseek(fp, ri->roq_start, SEEK_SET);
@@ -189,7 +190,7 @@ static inline void apply_motion_4x4(roq_parse_ctx* ctx, unsigned x, unsigned y, 
 	my = y + 8 - (mv & 0xf) - mean_y;
 
 	dst = ri->viewport + y * ri->viewport_pitch + x;
-	src = ri->viewport + my * ri->viewport_pitch + mx;
+	src = ri->viewportcopy + my * ri->viewport_pitch + mx;
 
 	for (i = 0; i < 4; i++)
 	{
@@ -212,7 +213,7 @@ static inline void apply_motion_8x8(roq_parse_ctx* ctx, unsigned x, unsigned y, 
 	my = y + 8 - (mv & 0xf) - mean_y;
 	
 	dst = ri->viewport + y * ri->viewport_pitch + x;
-	src = ri->viewport + my * ri->viewport_pitch + mx;
+	src = ri->viewportcopy + my * ri->viewport_pitch + mx;
 
 	for (i = 0; i < 8; i++)
 	{
@@ -273,22 +274,16 @@ extern const int u0344C_, u1772C_;
 typedef int (*roq_applier)(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf);
 
 static int roq_apply_mot(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
-static int roq_apply_mot1(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
-static int roq_apply_mot4(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
 static int roq_apply_fcc(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
 static int roq_apply_sld(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
 static int roq_apply_cc(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
-static int roq_apply_cc_mot(roq_parse_ctx* ctx, unsigned xp, unsigned yp, char* buf) RoQ_ATTR_SDRAM;
 
 static int roq_apply_fcc2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
 static int roq_apply_sld2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
 static int roq_apply_cc2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf) RoQ_ATTR_SDRAM;
 
-roq_applier appliers[] = { &roq_apply_mot, &roq_apply_mot1, &roq_apply_sld, &roq_apply_cc };
-roq_applier appliers2[] = { &roq_apply_mot, &roq_apply_mot1, &roq_apply_sld2, &roq_apply_cc2 };
-
-roq_applier appliers_mot[] = { &roq_apply_mot, &roq_apply_fcc, &roq_apply_mot1, &roq_apply_cc_mot };
-roq_applier appliers2_mot[] = { &roq_apply_mot, &roq_apply_fcc2, &roq_apply_mot1, &roq_apply_mot4 };
+roq_applier appliers[] = { &roq_apply_mot, &roq_apply_fcc, &roq_apply_sld, &roq_apply_cc };
+roq_applier appliers2[] = { &roq_apply_mot, &roq_apply_fcc2, &roq_apply_sld2, &roq_apply_cc2 };
 
 void roq_close(roq_info* ri)
 {
@@ -345,16 +340,6 @@ static inline int roq_read_vqid(roq_parse_ctx* ctx, unsigned char* buf, unsigned
 static int roq_apply_mot(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 {
 	return 0;
-}
-
-static int roq_apply_mot1(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
-{
-	return 1;
-}
-
-static int roq_apply_mot4(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
-{
-	return 4;
 }
 
 static int roq_apply_fcc(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
@@ -420,32 +405,6 @@ static int roq_apply_cc(roq_parse_ctx* ctx, unsigned xp, unsigned yp, char* buf)
 	return bpos;
 }
 
-#if 1
-static int roq_apply_cc_mot(roq_parse_ctx* ctx, unsigned xp, unsigned yp, char* buf)
-{
-	unsigned k;
-	unsigned x, y;
-	int bpos = 0;
-
-	for (k = 0; k < 4; k++)
-	{
-		unsigned vqid;
-
-		x = (k & 1) * 4;
-		x += xp;
-
-		y = (k & 2) * 2;
-		y += yp;
-
-		bpos += roq_read_vqid(ctx, (uint8_t *)&buf[bpos], &vqid);
-
-		bpos += appliers2_mot[vqid](ctx, x, y, &buf[bpos]);
-	}
-
-	return bpos;
-}
-#endif
-
 static int roq_apply_fcc2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 {
 	apply_motion_4x4(ctx, x, y, buf[0], ctx->chunk_arg1, ctx->chunk_arg0);
@@ -485,43 +444,85 @@ static int roq_apply_cc2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 
 /* -------------------------------------------------------------------------- */
 
-void roq_read_vq(roq_parse_ctx *ctxs, int startctx, int numctxs)
+void roq_read_vq(roq_parse_ctx *ctx, unsigned char *buf, int chunk_size, int dodma)
 {
-	int i;
+	int bpos = 0;
 	int xpos, ypos;
-	roq_parse_ctx *ctx;
-	int width = ctxs[0].ri->width;
+	roq_info *ri = ctx->ri;
+	int width = ri->width;
+	int dmafrom = 0, dmato = 0;
+	int finalxfer = 0;
 
-	ypos = startctx * 16;
-	for (i = startctx; i < numctxs; i += 2)
+	xpos = ypos = 0;
+	for (bpos = 0; bpos < chunk_size; )
 	{
 		int xp, yp;
-		int bpos;
-		unsigned char *buf;
 
-		ctx = &ctxs[i];
-		xpos = 0;
-		buf = ctx->buf;
-
-		for (bpos = 0; bpos < ctx->buf_len; )
+		for (yp = ypos; yp < ypos + 16; yp += 8)
 		{
-			for (yp = ypos; yp < ypos + 16; yp += 8)
+			for (xp = xpos; xp < xpos + 16; xp += 8)
 			{
-				for (xp = xpos; xp < xpos + 16; xp += 8)
+				bpos += roq_read_vqid(ctx, &buf[bpos], &ctx->vqid);
+				bpos += appliers[ctx->vqid](ctx, xp, yp, (char *)&buf[bpos]);
+				if (bpos >= chunk_size)
+					goto checknext;
+			}
+		}
+
+		xpos += 16;
+		if (xpos < width)
+			continue;
+
+checknext:
+		if (dodma)
+		{
+			int othery;
+
+xfer:
+			othery = ypos;
+
+			if (othery > dmato)
+			{
+				if (dmato > 0) 
 				{
-					bpos += roq_read_vqid(ctx, &buf[bpos], &ctx->vqid);
-					bpos += appliers[ctx->vqid](ctx, xp, yp, (char *)&buf[bpos]);
-					if (bpos >= ctx->buf_len)
-						goto next;
+					if (!finalxfer)
+					{
+						if (!(SH2_DMA_CHCR1 & 2))
+							goto next; // do not wait on TE
+					}
+					else
+					{
+						while (!(SH2_DMA_CHCR1 & 2)) ; // wait on TE
+					}
+					SH2_DMA_CHCR1 = 0; // clear TE
 				}
+
+				dmafrom = dmato;
+				dmato = othery;
+
+				// start DMA
+				SH2_DMA_SAR1 = (uint32_t)(ri->viewport + ri->viewport_pitch*dmafrom/2*sizeof(short));
+				SH2_DMA_DAR1 = (uint32_t)(ri->viewportcopy + ri->viewport_pitch*dmafrom/2*sizeof(short));
+				SH2_DMA_TCR1 = ((((dmato - dmafrom)*ri->viewport_pitch*sizeof(short)) >> 4) << 2); // xfer count (4 * # of 16 byte units)
+				SH2_DMA_CHCR1 = 0b0101111011100001; // dest incr, src incr, size 16B, auto req, cycle-steal, dual addr, intr disabled, clear TE, dma enabled
 			}
 
-			xpos += 16;
-			if (xpos >= width)
-				break;
+			if (finalxfer)
+			{
+				while (!(SH2_DMA_CHCR1 & 2)) ; // wait on TE
+				return;
+			}
 		}
+
 next:
-		ypos += 32;
+		xpos = 0;
+		ypos += 16;
+	}
+
+	if (dodma && dmato < ri->height)
+	{
+		finalxfer = 1;
+		goto xfer;
 	}
 }
 
@@ -532,10 +533,8 @@ int roq_read_frame(roq_info* ri, char loop)
 	unsigned int chunk_id = 0, chunk_arg0 = 0, chunk_arg1 = 0;
 	unsigned long chunk_size = 0;
 	unsigned long next_chunk;
-	unsigned bpos, xpos, ypos, xp, yp;
 	unsigned char *buf;
-	int numoffsets = 0;
-	roq_parse_ctx ctx, ctxs[20];
+	roq_parse_ctx ctx;
 
 	ri->frame_bytes = 0;
 
@@ -693,53 +692,7 @@ loop_start:
 	ctx.vqflg_pos = 0;
 	ctx.vqid = RoQ_ID_MOT;
 
-	bpos = xpos = ypos = 0;
-	while (bpos < chunk_size)
-	{
-		if (xpos == 0)
-		{
-			ctx.buf = &buf[bpos];
-			memcpy(&ctxs[numoffsets], &ctx, sizeof(ctx));
-		}
-
-		for (yp = ypos; yp < ypos + 16; yp += 8)
-		{
-			for (xp = xpos; xp < xpos + 16; xp += 8)
-			{
-				bpos += roq_read_vqid(&ctx, &buf[bpos], &ctx.vqid);
-				bpos += appliers_mot[ctx.vqid](&ctx, xp, yp, (char *)&buf[bpos]);
-				if (bpos >= chunk_size)
-					goto next;
-			}
-		}
-
-		xpos += 16;
-		if (xpos >= ri->width || bpos >= chunk_size)
-		{
-next:
-			xpos = 0;
-			ypos += 16;
-			if (bpos > chunk_size)
-				bpos = chunk_size;
-
-			ctxs[numoffsets].buf_len = &buf[bpos] - ctx.buf;
-			numoffsets++;
-
-			if (ypos >= ri->height)
-				break;
-		}
-	}
-
-	*((uintptr_t *)&MARS_SYS_COMM12) = (uintptr_t)ctxs;
-	MARS_SYS_COMM6 = numoffsets;
-	MARS_SYS_COMM4 = 4;
-	roq_read_vq(ctxs, 0, numoffsets);
-	while (MARS_SYS_COMM4);
-
-	//*((uintptr_t *)&MARS_SYS_COMM12) = (uintptr_t)ri;
-	//MARS_SYS_COMM4 = 5;
-	//memcpy(ri->viewportcopy, ri->viewport, ri->viewport_pitch*ri->height/2*sizeof(short));
-	//while (MARS_SYS_COMM4);
+	roq_read_vq(&ctx, buf, chunk_size, 1);
 
     Hw32xScreenFlip(0);
 

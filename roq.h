@@ -68,7 +68,7 @@ typedef struct roq_info_s {
 	roq_cell cells[256];
 	roq_qcell qcells[256];
 	short snd_sqr_arr_[260];
-	//short viewportcopy[RoQ_MAX_WIDTH*RoQ_MAX_HEIGHT];
+	short viewportcopy[RoQ_MAX_WIDTH*RoQ_MAX_HEIGHT];
 	short *snd_sqr_arr;
 	long roq_start;
 	unsigned width, height, frame_num;
