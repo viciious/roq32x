@@ -11,9 +11,9 @@
 #endif
 
 void snddma_submit(void) SND_ATTR_SDRAM;
-uint16_t* snddma_get_buf(int channels, int num_samples) SND_ATTR_SDRAM;
-uint16_t* snddma_get_buf_mono(int num_samples) SND_ATTR_SDRAM;
-uint16_t* snddma_get_buf_stereo(int num_samples) SND_ATTR_SDRAM;
+int16_t* snddma_get_buf(int channels, int num_samples, int left, int right, short *snd_sqr_arr) SND_ATTR_SDRAM;
+int16_t* snddma_get_buf_mono(int num_samples, int left, short *snd_sqr_arr) SND_ATTR_SDRAM;
+int16_t* snddma_get_buf_stereo(int num_samples, int left, int right, short *snd_sqr_arr) SND_ATTR_SDRAM;
 
 static inline uint16_t s16pcm_to_u16pwm(int s) {
     return SAMPLE_MIN + ((unsigned)(s+32768) >> 6);

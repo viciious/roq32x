@@ -585,7 +585,7 @@ loop_start:
 		case RoQ_SOUND_MONO:
 		{
 			int j = 0;
-			uint16_t* p;
+			int16_t* p;
 			int snd_left;
 			int total_samples = chunk_size;
 
@@ -597,18 +597,12 @@ loop_start:
 				if (num_samples > 256)
 					num_samples = 256;
 
-				p = snddma_get_buf_mono(num_samples);
+				p = (int16_t *)snddma_get_buf_mono(num_samples, snd_left, ri->snd_sqr_arr);
 				if (!p)
 					break;
 
 				for (j = 0; j < num_samples; j++)
-				{
-					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
-					if (snd_left < -32768) snd_left = -32768;
-					else if (snd_left >  32767) snd_left =  32767;
-
-					*p++ = s16pcm_to_u16pwm(snd_left);
-				}
+					*p++ = roq_fgetsc(fp);
 
 				snddma_submit();
 
@@ -620,7 +614,7 @@ loop_start:
 		case RoQ_SOUND_STEREO:
 		{
 			int j = 0;
-			uint16_t *p;
+			int16_t *p;
 			int snd_left, snd_right;
 			int total_samples = chunk_size / 2;
 
@@ -633,22 +627,14 @@ loop_start:
 				if (num_samples > 256)
 					num_samples = 256;
 
-				p = snddma_get_buf_stereo(num_samples);
+				p = (int16_t *)snddma_get_buf_stereo(num_samples, snd_left, snd_right, ri->snd_sqr_arr);
 				if (!p)
 					break;
 
 				for (j = 0; j < num_samples; j++)
 				{
-					snd_left += ri->snd_sqr_arr[roq_fgetsc(fp)];
-					if (snd_left < -32768) snd_left = -32768;
-					else if (snd_left >  32767) snd_left =  32767;
-
-					snd_right += ri->snd_sqr_arr[roq_fgetsc(fp)];
-					if (snd_right < -32768) snd_right = -32768;
-					else if (snd_right >  32767) snd_right =  32767;
-
-					*p++ = s16pcm_to_u16pwm(snd_left);
-					*p++ = s16pcm_to_u16pwm(snd_right);
+					*p++ = roq_fgetsc(fp);
+					*p++ = roq_fgetsc(fp);
 				}
 
 				snddma_submit();

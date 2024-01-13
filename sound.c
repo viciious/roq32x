@@ -8,25 +8,28 @@ marsrb_t soundbuf;
 void sec_dma1_handler(void) SND_ATTR_SDRAM;
 void sec_dma_kickstart(void) SND_ATTR_SDRAM;
 
-uint16_t* snddma_get_buf(int channels, int num_samples) {
-    uint16_t* p;
+int16_t* snddma_get_buf(int channels, int num_samples, int left, int right, short *snd_sqr_arr) {
+    int16_t* p;
 
-    p = (uint16_t*)Mars_RB_GetWriteBuf(&soundbuf, 8, 1);
+    p = (int16_t*)Mars_RB_GetWriteBuf(&soundbuf, 8, 1);
     if (!p)
         return NULL;
     *p++ = channels;
     *p++ = num_samples;
+    *p++ = left;
+    *p++ = right;
+    *(uintptr_t *)p = (uintptr_t)snd_sqr_arr;
     Mars_RB_CommitWrite(&soundbuf);
 
-    return (uint16_t*)Mars_RB_GetWriteBuf(&soundbuf, num_samples * channels, 1);
+    return (int16_t*)Mars_RB_GetWriteBuf(&soundbuf, num_samples * channels, 1);
 }
 
-uint16_t* snddma_get_buf_mono(int num_samples) {
-    return snddma_get_buf(1, num_samples);
+int16_t* snddma_get_buf_mono(int num_samples, int left, short *snd_sqr_arr) {
+    return snddma_get_buf(1, num_samples, left, left, snd_sqr_arr);
 }
 
-uint16_t* snddma_get_buf_stereo(int num_samples) {
-    return snddma_get_buf(2, num_samples);
+int16_t* snddma_get_buf_stereo(int num_samples, int left, int right, short *snd_sqr_arr) {
+    return snddma_get_buf(2, num_samples, left, right, snd_sqr_arr);
 }
 
 void snddma_wait(void) {
@@ -57,6 +60,8 @@ void sec_dma_kickstart(void)
 
 void sec_dma1_handler(void)
 {
+    int i;
+
     Mars_RB_CommitRead(&soundbuf);
 
     SH2_DMA_CHCR1; // read TE
@@ -68,15 +73,45 @@ void sec_dma1_handler(void)
         return;
     }
 
-    short* p = Mars_RB_GetReadBuf(&soundbuf, 8, 1);
+    uint16_t *p = (uint16_t *)Mars_RB_GetReadBuf(&soundbuf, 8, 1);
     int num_channels = *p++;
     int num_samples = *p++;
+    int snd_left = (int16_t)*p++;
+    int snd_right = (int16_t)*p++;
+    short *snd_sqr_arr = (short *)(*((uintptr_t *)p));
     Mars_RB_CommitRead(&soundbuf);
 
-    p = Mars_RB_GetReadBuf(&soundbuf, num_samples * num_channels, 0);
+    p = (uint16_t *)Mars_RB_GetReadBuf(&soundbuf, num_samples * num_channels, 0);
 
     SH2_DMA_SAR1 = (intptr_t)p;
     SH2_DMA_TCR1 = num_samples;
+
+    if (num_channels == 1)
+    {
+        for (i = 0; i < num_samples; i++)
+        {
+            snd_left += snd_sqr_arr[(int8_t)*p];
+            if (snd_left < -32768) snd_left = -32768;
+            else if (snd_left >  32767) snd_left =  32767;
+            *p++ = s16pcm_to_u16pwm(snd_left);
+        }
+    }
+    else
+    {
+        for (i = 0; i < num_samples; i++)
+        {
+            snd_left += snd_sqr_arr[(int8_t)*p];
+            if (snd_left < -32768) snd_left = -32768;
+            else if (snd_left >  32767) snd_left =  32767;
+            *p++ = s16pcm_to_u16pwm(snd_left);
+
+            snd_right += snd_sqr_arr[(int8_t)*p];
+            if (snd_right < -32768) snd_right = -32768;
+            else if (snd_right >  32767) snd_right =  32767;
+            *p++ = s16pcm_to_u16pwm(snd_right);
+        }
+    }
+
     if (num_channels == 2)
     {
         SH2_DMA_DAR1 = 0x20004034; // storing a long here will set left and right
