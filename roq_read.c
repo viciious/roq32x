@@ -594,8 +594,8 @@ loop_start:
 			for (i = 0; i < total_samples; )
 			{
 				int num_samples = total_samples - i;
-				if (num_samples > 256)
-					num_samples = 256;
+				if (num_samples > 440)
+					num_samples = 440;
 
 				p = snddma_get_buf_mono(num_samples);
 				if (!p)
@@ -630,8 +630,8 @@ loop_start:
 			for (i = 0; i < total_samples; )
 			{
 				int num_samples = total_samples - i;
-				if (num_samples > 256)
-					num_samples = 256;
+				if (num_samples > 440)
+					num_samples = 440;
 
 				p = snddma_get_buf_stereo(num_samples);
 				if (!p)
