@@ -176,9 +176,10 @@ static inline short* Mars_RB_GetWriteBuf(marsrb_t* wb, unsigned wcnt, int wait)
     if (wcnt > MARS_RINGBUF_MAXWORDS)
         return NULL;
 
-    if (window < MARS_RINGBUF_MAXWORDS / 2)
-        window = MARS_RINGBUF_MAXWORDS / 2;
-    else if (window > MARS_RINGBUF_MAXWORDS)
+    //if (window < MARS_RINGBUF_MAXWORDS / 2)
+    //    window = MARS_RINGBUF_MAXWORDS / 2;
+    //else 
+    if (window > MARS_RINGBUF_MAXWORDS)
         window = MARS_RINGBUF_MAXWORDS;
     window = MARS_RINGBUF_MAXWORDS - window;
 
