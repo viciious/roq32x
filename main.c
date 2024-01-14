@@ -264,13 +264,16 @@ start:
 
         Hw32xScreenFlip(0);
 
+        int starttics = Hw32xGetTicks();
         while (1) {
             int sec;
             int ret = 1;
             int starttics;
             int waittics;
             int extrawait;
+            int oldstarttics;
 
+            oldstarttics = starttics;
             starttics = Hw32xGetTicks();
 
             sec = starttics / (MARS_VDP_DISPMODE & MARS_NTSC_FORMAT ? 60 : 50); // FIXME: add proper NTSC vs PAL rate detection
@@ -302,7 +305,7 @@ start:
 
             if (framecount == 0 || !paused)
             {
-                ret = roq_read_frame(gri, 0);
+                ret = roq_read_frame(gri, 0, oldstarttics);
 
                 if (ret == 0) {
                     while (MARS_SYS_COMM4 != 0);
@@ -326,14 +329,6 @@ start:
                 clearhud = 0;
 
             totaltics = Hw32xGetTicks() - starttics;
-
-            waittics = totaltics;
-            do {
-                // don't let the mixer run too far ahead
-                extrawait = (((snddma_length() * 2) >> 10) > 8);
-
-                waittics = Hw32xGetTicks() - starttics;
-            } while (waittics < gri->framerate + extrawait);
 
             framecount++;
         }

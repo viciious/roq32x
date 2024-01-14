@@ -526,7 +526,7 @@ next:
 	}
 }
 
-int roq_read_frame(roq_info* ri, char loop)
+int roq_read_frame(roq_info* ri, char loop, int starttics)
 {
 	int i, nv1, nv2;
 	roq_file* fp = ri->fp;
@@ -535,6 +535,7 @@ int roq_read_frame(roq_info* ri, char loop)
 	unsigned long next_chunk;
 	unsigned char *buf;
 	roq_parse_ctx ctx;
+	int waittics, extrawait;
 
 	ri->frame_bytes = 0;
 
@@ -680,6 +681,12 @@ loop_start:
 	}
 
 	Hw32xFlipWait();
+
+	do {
+		// don't let the mixer run too far ahead
+		extrawait = (((snddma_length() * 2) >> 10) > 8);
+		waittics = Hw32xGetTicks() - starttics;
+	} while (waittics < ri->framerate + extrawait);
 
 	ri->frame_num++;
 
