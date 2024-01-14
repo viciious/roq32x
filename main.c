@@ -330,7 +330,7 @@ start:
             waittics = totaltics;
             do {
                 // don't let the mixer run too far ahead
-                extrawait = (((snddma_length() * 2) >> 10) > 4);
+                extrawait = (((snddma_length() * 2) >> 10) > 8);
 
                 waittics = Hw32xGetTicks() - starttics;
             } while (waittics < gri->framerate + extrawait);
