@@ -73,7 +73,6 @@ typedef struct roq_info_s {
 	long roq_start;
 	unsigned width, height, frame_num;
 	unsigned display_height;
-	unsigned char *y[2], *uv[2];
 	unsigned int frame_bytes;
 	roq_bufferdata_t buffer;
 	short *framebuffer, *viewport;

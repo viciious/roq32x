@@ -39,8 +39,7 @@ OBJS = \
 	hw_32x.o \
 	font.o \
 	roq_read.o \
-	roqbase.o \
-	blit.o
+	roqbase.o
 
 all: m68k.bin $(TARGET).32x
 

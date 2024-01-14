@@ -257,10 +257,16 @@ roq_info* roq_open(roq_file* fp, roq_bufferdata_t buf, int refresh_rate, short *
 #define YUVClip8(v) (__builtin_expect((v) & ~YUV_MASK2, 0) ? (__builtin_expect((int)(v) < 0, 0) ? 0 : YUV_MASK2) : (v))
 #define YUVRGB555(r,g,b) ((((((r)) >> (10+(YUV_FIX2-7))))) | (((((g)) >> (5+(YUV_FIX2-7)))) & GMASK) | (((((b)) >> (0+(YUV_FIX2-7)))) & BMASK))
 
-#define YUV_FIX2 8 
-extern const int YUV_MUL2, YUV_NUDGE2, YUV_MASK2;
-extern const int v1402C_, v0714C_;
-extern const int u0344C_, u1772C_;
+#define YUV_FIX2 8                   // fixed-point precision for YUV->RGB
+const int YUV_MUL2 = (1 << YUV_FIX2);
+const int YUV_NUDGE2 = /*(1 << (YUV_FIX2 - 1))*/0;
+const int YUV_MASK2 = (256 << YUV_FIX2) - 1;
+
+const int v1402C_ = 1.402000 * YUV_MUL2;
+const int v0714C_ = 0.714136 * YUV_MUL2;
+
+const int u0344C_ = 0.344136 * YUV_MUL2;
+const int u1772C_ = 1.772000 * YUV_MUL2;
 
 #define yuv2rgb555(y,u,v) \
 	YUVRGB555( \
