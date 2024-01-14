@@ -4,7 +4,7 @@
 #define SAMPLE_MAX      1032
 #define SAMPLE_CENTER   (SAMPLE_MAX-SAMPLE_MIN)/2
 
-#define MAX_SAMPLES     440 // 50Hz
+#define MAX_SAMPLES     736 // 50Hz
 
 #ifdef __32X__
 #define SND_ATTR_SDRAM  __attribute__((section(".data"), aligned(16)))
