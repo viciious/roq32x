@@ -631,8 +631,8 @@ loop_start:
 			int snd_left, snd_right;
 			int total_samples = chunk_size / 2;
 
-			snd_left = (int16_t)(chunk_arg0 << 8);
-			snd_right = (int16_t)(chunk_arg1 << 8);
+			snd_left = (int16_t)(chunk_arg1 << 8);
+			snd_right = (int16_t)(chunk_arg0 << 8);
 
 			for (i = 0; i < total_samples; )
 			{
