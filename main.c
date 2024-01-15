@@ -68,15 +68,6 @@ void secondary(void)
 void display(int framecount, int hudenable, int fpscount, int readtics, int totaltics, int bps, 
     int maxbps, int clearhud, int stretch)
 {
-    int y = 0;
-    int height = 0;
-
-    if (framecount == 0) {
-        goto nextframe;
-    }
-
-    //blit_roqframe(gri, blit_mode, 0, height, gri->display_height, 0xfe, stretch);
-
     if (clearhud) {
         Hw32xScreenClearLine(23);
     }
@@ -96,12 +87,6 @@ void display(int framecount, int hudenable, int fpscount, int readtics, int tota
     default:
         break;
     }
-
-    //while (MARS_SYS_COMM4 != 0);
-
-nextframe:
-    //MARS_SYS_COMM6 = 0;
-    //MARS_SYS_COMM4 = (stretch<<8)|2;
 }
 
 static void unswitch_ROMbanks(roq_file* fp)
@@ -227,7 +212,7 @@ int main(void)
     while (1)
     {
         int stretch, pitch, header, footer, stretch_height;
-        volatile unsigned short* lines = &MARS_FRAMEBUFFER;
+        unsigned short* lines = (unsigned short *) &MARS_FRAMEBUFFER;
 
 start:
         fpscount = 0;
@@ -264,16 +249,11 @@ start:
 
         Hw32xScreenFlip(0);
 
-        int starttics = Hw32xGetTicks();
+        int starttics = 0;
         while (1) {
             int sec;
             int ret = 1;
-            int starttics;
-            int waittics;
-            int extrawait;
-            int oldstarttics;
 
-            oldstarttics = starttics;
             starttics = Hw32xGetTicks();
 
             sec = starttics / (MARS_VDP_DISPMODE & MARS_NTSC_FORMAT ? 60 : 50); // FIXME: add proper NTSC vs PAL rate detection
@@ -305,10 +285,10 @@ start:
 
             if (framecount == 0 || !paused)
             {
-                ret = roq_read_frame(gri, 0, oldstarttics);
+                ret = roq_read_frame(gri, 0, Hw32xFlipWait, Hw32xScreenFlip);
 
                 if (ret == 0) {
-                    while (MARS_SYS_COMM4 != 0);
+                    Hw32xFlipWait();
                     close_ROMroq();
                     if ((gri = roq_open(open_ROMroq(), switch_ROMbanks, refresh_rate, framebuffer)) == NULL)
                         return -1;
@@ -329,6 +309,14 @@ start:
                 clearhud = 0;
 
             totaltics = Hw32xGetTicks() - starttics;
+
+            int waittics = 0;
+            int extrawait = 0;
+            do {
+                // don't let the mixer run too far ahead
+                extrawait = (((snddma_length() * 2) >> 10) > 8);
+                waittics = Hw32xGetTicks() - starttics;
+            } while (waittics < gri->framerate + extrawait);
 
             framecount++;
         }

@@ -150,8 +150,8 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int refresh_rate)
 			ri->width = get_word(fp);
 			ri->height = get_word(fp);
 			ri->display_height = ri->height;
-			if (ri->width*ri->display_height > RoQ_MAX_WIDTH*RoQ_MAX_HEIGHT)
-				ri->display_height = (RoQ_MAX_WIDTH*RoQ_MAX_HEIGHT/ri->width) & ~15;
+			while (ri->width * ri->display_height > 0x10000 || ri->display_height > 224)
+				ri->display_height -= 16;
 		}
 
 		fp->rover = buf + chunk_size;
@@ -523,16 +523,18 @@ xfer:
 next:
 		xpos = 0;
 		ypos += 16;
+		if (ypos >= ri->display_height)
+			break;
 	}
 
-	if (dodma && dmato < ri->height)
+	if (dodma && dmato < ri->display_height)
 	{
 		finalxfer = 1;
 		goto xfer;
 	}
 }
 
-int roq_read_frame(roq_info* ri, char loop, int starttics)
+int roq_read_frame(roq_info* ri, char loop, void (*finish)(void), void (*swap)(int wait))
 {
 	int i, nv1, nv2;
 	roq_file* fp = ri->fp;
@@ -541,7 +543,6 @@ int roq_read_frame(roq_info* ri, char loop, int starttics)
 	unsigned long next_chunk;
 	unsigned char *buf;
 	roq_parse_ctx ctx;
-	int waittics, extrawait;
 
 	ri->frame_bytes = 0;
 
@@ -686,13 +687,7 @@ loop_start:
 		return 0;
 	}
 
-	Hw32xFlipWait();
-
-	do {
-		// don't let the mixer run too far ahead
-		extrawait = (((snddma_length() * 2) >> 10) > 8);
-		waittics = Hw32xGetTicks() - starttics;
-	} while (waittics < ri->framerate + extrawait);
+	finish();
 
 	ri->frame_num++;
 
@@ -707,9 +702,10 @@ loop_start:
 
 	roq_read_vq(&ctx, buf, chunk_size, 1);
 
-    Hw32xScreenFlip(0);
-
 	fp->rover = buf + chunk_size;
 	roq_fseek(fp, next_chunk, SEEK_SET);
+
+	swap(0);
+
 	return 1;
 }

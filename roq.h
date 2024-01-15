@@ -16,9 +16,6 @@
 
 #define RoQ_SAMPLE_RATE    22050
 
-#define RoQ_MAX_WIDTH	320
-#define RoQ_MAX_HEIGHT	192
-
 #ifdef __32X__
 #define RoQ_ATTR_SDRAM  __attribute__((section(".data"), aligned(16)))
 #else
@@ -65,12 +62,12 @@ typedef struct {
 typedef struct roq_info_s {
 	roq_file *fp;
 	int buf_size;
+	short *snd_sqr_arr;
+	long roq_start;
+	short viewportcopy[0x10000] __attribute__((aligned(16)));
 	roq_cell cells[256];
 	roq_qcell qcells[256];
 	short snd_sqr_arr_[260];
-	short viewportcopy[RoQ_MAX_WIDTH*RoQ_MAX_HEIGHT];
-	short *snd_sqr_arr;
-	long roq_start;
 	unsigned width, height, frame_num;
 	unsigned display_height;
 	unsigned int frame_bytes;
@@ -89,7 +86,7 @@ void roq_close(roq_info *ri);
 int roq_read_video(roq_info *ri, char loop);
 int roq_read_audio(roq_info *ri, char loop);
 
-int roq_read_frame(roq_info* ri, char loop, int starttics)
+int roq_read_frame(roq_info* ri, char loop, void (*finish)(void), void (*swap)(int wait))
 	RoQ_ATTR_SDRAM
 	;
 
