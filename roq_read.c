@@ -149,9 +149,6 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int refresh_rate)
 
 			ri->width = get_word(fp);
 			ri->height = get_word(fp);
-			ri->display_height = ri->height;
-			while (ri->width * ri->display_height > 0x10000 || ri->display_height > 224)
-				ri->display_height -= 16;
 		}
 
 		fp->rover = buf + chunk_size;
@@ -168,10 +165,21 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int refresh_rate)
 	}
 
 	ri->viewport = ri->framebuffer;
-	if (ri->width < 320)
-		ri->viewport += (320 - ri->width) / 2;
-	ri->viewport = (void *)((uintptr_t)ri->viewport & ~15);
-	ri->viewport_pitch = (160 + ri->width / 2 + 15) & ~15;
+
+	ri->display_height = ri->height;
+	if (ri->viewport_pitch * ri->display_height < 0x10000)
+	{
+		if (ri->width < 320)
+			ri->viewport += (320 - ri->width) / 2;
+		ri->viewport = (void *)((uintptr_t)ri->viewport & ~15);
+		ri->viewport_pitch = (160 + ri->width / 2 + 15) & ~15;
+	}
+	else
+	{
+		ri->viewport_pitch = ri->width;
+	}
+	while (ri->viewport_pitch * ri->display_height > 0x10000 || ri->display_height > 224)
+		ri->display_height -= 16;
 
 	fp->rover = start_rover;
 	roq_fseek(fp, ri->roq_start, SEEK_SET);

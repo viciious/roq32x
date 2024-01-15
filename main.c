@@ -225,9 +225,9 @@ start:
         bps = 0;
         maxbps = 0;
 
-        stretch = gri->width <= BLIT_STRETCH_WIDTH_X2 ? 2 : 1;
-        pitch = gri->width*stretch + (320 - gri->width*stretch)/2;
-        stretch_height = gri->display_height * stretch;
+        stretch = 1;
+        pitch = gri->viewport_pitch;
+        stretch_height = gri->display_height;
         header = (224 - stretch_height) / 2;
         footer = header + stretch_height;
 
