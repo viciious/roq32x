@@ -542,7 +542,7 @@ next:
 	}
 }
 
-int roq_read_frame(roq_info* ri, char loop, void (*finish)(void), void (*swap)(int wait))
+int roq_read_frame(roq_info* ri, char loop, void (*finish)(void))
 {
 	int i, nv1, nv2;
 	roq_file* fp = ri->fp;
@@ -712,8 +712,6 @@ loop_start:
 
 	fp->rover = buf + chunk_size;
 	roq_fseek(fp, next_chunk, SEEK_SET);
-
-	swap(0);
 
 	return 1;
 }

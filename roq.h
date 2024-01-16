@@ -86,7 +86,7 @@ void roq_close(roq_info *ri);
 int roq_read_video(roq_info *ri, char loop);
 int roq_read_audio(roq_info *ri, char loop);
 
-int roq_read_frame(roq_info* ri, char loop, void (*finish)(void), void (*swap)(int wait))
+int roq_read_frame(roq_info* ri, char loop, void (*finish)(void))
 	RoQ_ATTR_SDRAM
 	;
 

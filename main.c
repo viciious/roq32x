@@ -281,11 +281,10 @@ start:
                 inputticcount = starttics;
             }
 
-            readtics = starttics;
-
             if (framecount == 0 || !paused)
             {
-                ret = roq_read_frame(gri, 0, Hw32xFlipWait, Hw32xScreenFlip);
+                readtics = starttics;
+                ret = roq_read_frame(gri, 0, Hw32xFlipWait);
 
                 if (ret == 0) {
                     Hw32xFlipWait();
@@ -298,11 +297,13 @@ start:
                 if (ret < 0)
                     return -1;
                 bytesread += gri->frame_bytes;
+
+                readtics = Hw32xGetTicks() - readtics;
+
+                display(framecount, hud, fpscount, readtics, totaltics, bps, maxbps, clearhud, stretch);
+
+                Hw32xScreenFlip(0);
             }
-
-            readtics = Hw32xGetTicks() - readtics;
-
-            display(framecount, hud, fpscount, readtics, totaltics, bps, maxbps, clearhud, stretch);
 
             clearhud--;
             if (clearhud < 0)
