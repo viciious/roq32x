@@ -153,8 +153,6 @@ int main(void)
     int prevsec;
     int prevsecframe;
     int inputticcount;
-    int readtics;
-    int totaltics;
     char paused = 0, hud = 0, clearhud = 0;
     unsigned bytesread, bps, maxbps;
     int refresh_rate;
@@ -206,7 +204,6 @@ int main(void)
 
     blit_mode = 0;
 
-    totaltics = 0;
     inputticcount = 0;
 
     while (1)
@@ -249,7 +246,7 @@ start:
 
         Hw32xScreenFlip(0);
 
-        int starttics = 0;
+        int starttics = 0, prevstarttics = Hw32xGetTicks();
         while (1) {
             int sec;
             int ret = 1;
@@ -283,7 +280,7 @@ start:
 
             if (framecount == 0 || !paused)
             {
-                readtics = starttics;
+                int readtics = Hw32xGetTicks();
                 ret = roq_read_frame(gri, 0, Hw32xFlipWait);
 
                 if (ret == 0) {
@@ -300,24 +297,20 @@ start:
 
                 readtics = Hw32xGetTicks() - readtics;
 
-                display(framecount, hud, fpscount, readtics, totaltics, bps, maxbps, clearhud, stretch);
+                display(framecount, hud, fpscount, readtics, Hw32xGetTicks() - prevstarttics, bps, maxbps, clearhud, stretch);
+                prevstarttics = Hw32xGetTicks();
 
                 Hw32xScreenFlip(0);
             }
 
+            int waittics = 0;
+            do {
+                waittics = Hw32xGetTicks() - starttics;
+            } while (waittics < gri->framerate);
+
             clearhud--;
             if (clearhud < 0)
                 clearhud = 0;
-
-            totaltics = Hw32xGetTicks() - starttics;
-
-            int waittics = 0;
-            int extrawait = 0;
-            do {
-                // don't let the mixer run too far ahead
-                extrawait = (((snddma_length() * 2) >> 10) > 8);
-                waittics = Hw32xGetTicks() - starttics;
-            } while (waittics < gri->framerate + extrawait);
 
             framecount++;
         }

@@ -32,7 +32,7 @@
 #include "32x.h"
 #include "hw_32x.h"
 
-#define MARS_RINGBUF_MAXLINES    1024 // use 512 for mono ring buffer, 1024 - for stereo
+#define MARS_RINGBUF_MAXLINES    2048 // use 512 for mono ring buffer, 1024 - for stereo
 #define MARS_RINGBUF_MAXWORDS    (MARS_RINGBUF_MAXLINES*8)
 
 #define MARS_UNCACHED_RROVER    *(volatile unsigned *)(((intptr_t)&wb->readrover) | 0x20000000)
