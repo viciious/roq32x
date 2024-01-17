@@ -14,6 +14,8 @@
 #define RoQ_ID_SLD		0x02
 #define RoQ_ID_CCC		0x03
 
+#define RoQ_MAX_VIEWPORT_SIZE 320*192
+
 #define RoQ_SAMPLE_RATE    22050
 
 #ifdef __32X__
@@ -64,7 +66,7 @@ typedef struct roq_info_s {
 	int buf_size;
 	short *snd_sqr_arr;
 	long roq_start;
-	short viewportcopy[0x10000] __attribute__((aligned(16)));
+	short viewportcopy[RoQ_MAX_VIEWPORT_SIZE] __attribute__((aligned(16)));
 	roq_cell cells[256];
 	roq_qcell qcells[256];
 	short snd_sqr_arr_[260];

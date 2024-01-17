@@ -167,7 +167,7 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int refresh_rate)
 	ri->viewport = ri->framebuffer;
 
 	ri->display_height = ri->height;
-	if (ri->viewport_pitch * ri->display_height < 0x10000)
+	if (ri->viewport_pitch * ri->display_height < RoQ_MAX_VIEWPORT_SIZE)
 	{
 		if (ri->width < 320)
 			ri->viewport += (320 - ri->width) / 2;
@@ -178,7 +178,7 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int refresh_rate)
 	{
 		ri->viewport_pitch = ri->width;
 	}
-	while (ri->viewport_pitch * ri->display_height > 0x10000 || ri->display_height > 224)
+	while (ri->viewport_pitch * ri->display_height > RoQ_MAX_VIEWPORT_SIZE || ri->display_height > 224)
 		ri->display_height -= 16;
 
 	fp->rover = start_rover;
