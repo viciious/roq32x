@@ -14,7 +14,7 @@
 #define RoQ_ID_SLD		0x02
 #define RoQ_ID_CCC		0x03
 
-#define RoQ_MAX_VIEWPORT_SIZE 320*192
+#define RoQ_MAX_VIEWPORT_SIZE 288*224
 
 #define RoQ_SAMPLE_RATE    22050
 
