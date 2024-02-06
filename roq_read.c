@@ -267,7 +267,7 @@ roq_info* roq_open(roq_file* fp, roq_bufferdata_t buf, int refresh_rate, short *
 
 #define YUV_FIX2 8                   // fixed-point precision for YUV->RGB
 const int YUV_MUL2 = (1 << YUV_FIX2);
-const int YUV_NUDGE2 = /*(1 << (YUV_FIX2 - 1))*/0;
+const int YUV_NUDGE2 = (1 << (YUV_FIX2 - 1));
 const int YUV_MASK2 = (256 << YUV_FIX2) - 1;
 
 const int v1402C_ = 1.402000 * YUV_MUL2;
