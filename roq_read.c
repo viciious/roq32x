@@ -202,9 +202,10 @@ static inline void apply_motion_4x4(roq_parse_ctx* ctx, unsigned x, unsigned y, 
 
 	for (i = 0; i < 4; i++)
 	{
-		int j;
-		for (j = 0; j < 4; j++)
-			dst[j] = src[j];
+		dst[0] = src[0];
+		dst[1] = src[1];
+		dst[2] = src[2];
+		dst[3] = src[3];
 		src += ri->viewport_pitch;
 		dst += ri->viewport_pitch;
 	}
@@ -225,9 +226,14 @@ static inline void apply_motion_8x8(roq_parse_ctx* ctx, unsigned x, unsigned y, 
 
 	for (i = 0; i < 8; i++)
 	{
-		int j;
-		for (j = 0; j < 8; j++)
-			dst[j] = src[j];
+		dst[0] = src[0];
+		dst[1] = src[1];
+		dst[2] = src[2];
+		dst[3] = src[3];
+		dst[4] = src[4];
+		dst[5] = src[5];
+		dst[6] = src[6];
+		dst[7] = src[7];
 		src += ri->viewport_pitch;
 		dst += ri->viewport_pitch;
 	}
@@ -433,25 +439,33 @@ static int roq_apply_sld2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 
 static int roq_apply_cc2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 {
-	int i;
 	roq_info* ri = ctx->ri;
 	unsigned pitch = ri->viewport_pitch;
 	int *dst = (int *)(ri->viewport + y * pitch + x);
+	roq_cell *cell0, *cell1, *cell2, *cell3;
 
 	pitch /= 2;
-	for (i = 0; i < 4; i += 2)
-	{
-		roq_cell *cell0 = ri->cells + (uint8_t)buf[i];
-		roq_cell *cell1 = ri->cells + (uint8_t)buf[i+1];
 
-		dst[0] = cell0->rgb555x2[0];
-		dst[1] = cell1->rgb555x2[0];
-		dst += pitch;
+	cell0 = ri->cells + (uint8_t)buf[0];
+	cell1 = ri->cells + (uint8_t)buf[1];
 
-		dst[0] = cell0->rgb555x2[1];
-		dst[1] = cell1->rgb555x2[1];
-		dst += pitch;
-	}
+	dst[0] = cell0->rgb555x2[0];
+	dst[1] = cell1->rgb555x2[0];
+	dst += pitch;
+
+	dst[0] = cell0->rgb555x2[1];
+	dst[1] = cell1->rgb555x2[1];
+	dst += pitch;
+
+	cell2 = ri->cells + (uint8_t)buf[2];
+	cell3 = ri->cells + (uint8_t)buf[3];
+
+	dst[0] = cell2->rgb555x2[0];
+	dst[1] = cell3->rgb555x2[0];
+	dst += pitch;
+
+	dst[0] = cell2->rgb555x2[1];
+	dst[1] = cell3->rgb555x2[1];
 
 	return 4;
 }
