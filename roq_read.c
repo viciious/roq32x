@@ -481,25 +481,24 @@ void roq_read_vq(roq_parse_ctx *ctx, unsigned char *buf, int chunk_size, int dod
 	int dmafrom = 0, dmato = 0;
 	int finalxfer = 0;
 
-	xpos = ypos = 0;
+	ypos = 0;
 	for (bpos = 0; bpos < chunk_size; )
 	{
 		int xp, yp;
 
-		for (yp = ypos; yp < ypos + 16; yp += 8)
+		for (xpos = 0; xpos < width; xpos += 16)
 		{
-			for (xp = xpos; xp < xpos + 16; xp += 8)
+			for (yp = ypos; yp < ypos + 16; yp += 8)
 			{
-				bpos += roq_read_vqid(ctx, &buf[bpos], &ctx->vqid);
-				bpos += appliers[ctx->vqid](ctx, xp, yp, (char *)&buf[bpos]);
-				if (bpos >= chunk_size)
-					goto checknext;
+				for (xp = xpos; xp < xpos + 16; xp += 8)
+				{
+					bpos += roq_read_vqid(ctx, &buf[bpos], &ctx->vqid);
+					bpos += appliers[ctx->vqid](ctx, xp, yp, (char *)&buf[bpos]);
+					if (bpos >= chunk_size)
+						goto checknext;
+				}
 			}
 		}
-
-		xpos += 16;
-		if (xpos < width)
-			continue;
 
 checknext:
 		if (dodma)
@@ -508,19 +507,18 @@ checknext:
 
 xfer:
 			othery = ypos;
-
 			if (othery > dmato)
 			{
 				if (dmato > 0) 
 				{
-					if (!finalxfer)
+					if (finalxfer)
 					{
-						if (!(SH2_DMA_CHCR1 & 2))
-							goto next; // do not wait on TE
+						while (!(SH2_DMA_CHCR1 & 2)) ; // wait on TE
 					}
 					else
 					{
-						while (!(SH2_DMA_CHCR1 & 2)) ; // wait on TE
+						if (!(SH2_DMA_CHCR1 & 2))
+							goto next; // do not wait on TE
 					}
 					SH2_DMA_CHCR1 = 0; // clear TE
 				}
