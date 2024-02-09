@@ -370,7 +370,7 @@ static int roq_apply_fcc(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 
 static int roq_apply_sld(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 {
-	int i;
+	int i, j;
 	roq_info* ri = ctx->ri;
 	unsigned pitch = ri->viewport_pitch;
 	roq_qcell *qcell = ri->qcells + (uint8_t)buf[0];
@@ -378,24 +378,45 @@ static int roq_apply_sld(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 	short *dst2 = dst + pitch;
 
 	pitch *= 2;
+
 	for (i = 0; i < 4; i += 2)
 	{
 		roq_cell *cell0 = ri->cells + qcell->idx[i];
 		roq_cell *cell1 = ri->cells + qcell->idx[i+1];
 
-		dst[0] = dst[1] = dst2[0] = dst2[1] = cell0->rgb555[0];
-		dst[2] = dst[3] = dst2[2] = dst2[3] = cell1->rgb555[0];
-		dst[4] = dst[5] = dst2[4] = dst2[5] = cell0->rgb555[1];
-		dst[6] = dst[7] = dst2[6] = dst2[7] = cell1->rgb555[1];
-		dst += pitch;
-		dst2 += pitch;
+		for (j = 0; j < 2; j++)
+		{
+#ifdef MARS
+			__asm volatile(
+				"swap.w %2, r0\n\t"
+				"mov.w r0, @(0, %0)\n\t" "mov.w r0, @( 2, %0)\n\t" "mov.w r0, @(0, %1)\n\t" "mov.w r0, @( 2, %1)\n\t"
+				"swap.w r0, r0\n\t"
+				"mov.w r0, @(8, %0)\n\t" "mov.w r0, @(10, %0)\n\t" "mov.w r0, @(8, %1)\n\t" "mov.w r0, @(10, %1)\n\t"
+				: :  "r"(dst), "r"(dst2), "r"(cell0->rgb555x2[j]) : "r0");
 
-		dst[0] = dst[1] = dst2[0] = dst2[1] = cell0->rgb555[2];
-		dst[2] = dst[3] = dst2[2] = dst2[3] = cell1->rgb555[2];
-		dst[4] = dst[5] = dst2[4] = dst2[5] = cell0->rgb555[3];
-		dst[6] = dst[7] = dst2[6] = dst2[7] = cell1->rgb555[3];
-		dst += pitch;
-		dst2 += pitch;
+			__asm volatile(
+				"swap.w %2, r0\n\t"
+				"mov.w r0, @( 4, %0)\n\t" "mov.w r0, @( 6, %0)\n\t" "mov.w r0, @( 4, %1)\n\t" "mov.w r0, @( 6, %1)\n\t"
+				"swap.w r0, r0\n\t"
+				"mov.w r0, @(12, %0)\n\t" "mov.w r0, @(14, %0)\n\t" "mov.w r0, @(12, %1)\n\t" "mov.w r0, @(14, %1)\n\t"
+				: : "r"(dst), "r"(dst2), "r"(cell1->rgb555x2[j]) : "r0");
+#else
+			int a, b;
+
+ 			a = cell0->rgb555x2[j];
+			dst[4] = dst[5] = dst2[4] = dst2[5] = a;
+			a >>= 16;
+			dst[0] = dst[1] = dst2[0] = dst2[1] = a;
+
+			b = cell1->rgb555x2[j];
+			dst[6] = dst[7] = dst2[6] = dst2[7] = b;
+			b >>= 16;
+			dst[2] = dst[3] = dst2[2] = dst2[3] = b;
+#endif
+
+			dst += pitch;
+			dst2 += pitch;
+		}
 	}
 
 	return 1;

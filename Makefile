@@ -15,7 +15,7 @@ CCFLAGS += -D__32X__ -DMARS
 HWFLAGS := $(CCFLAGS)
 HWFLAGS += -O1 -fno-lto
 
-CCFLAGS += -O2 -funroll-loops -funsafe-loop-optimizations
+CCFLAGS += -O2 -funsafe-loop-optimizations
 CCFLAGS += -fno-align-loops -fno-align-functions -fno-align-jumps -fno-align-labels
 
 LDFLAGS = -T mars.ld -Wl,-Map=output.map -nostdlib -Wl,--gc-sections --specs=nosys.specs -flto
