@@ -25,23 +25,6 @@ int secondary_task(int cmd, int arg)
     case 1:
         snddma_sec_init(RoQ_SAMPLE_RATE);
         return 1;
-    case 2:
-        return 1;
-    case 3:
-        return 1;
-    case 4:
-        //ClearCache();
-        //roq_read_vq((void *)(*(uintptr_t *)&MARS_SYS_COMM12), 1, arg, 0);
-        return 1;
-    case 5:
-    {
-        roq_info *ri = (void *)(*(uintptr_t *)&MARS_SYS_COMM12);
-        int size = ri->viewport_pitch*ri->height/2;
-	    memcpy(ri->viewportcopy + size, ri->viewport + size, size*sizeof(short));
-    }
-        return 1;
-    case 0xff:
-        return 1;
     default:
         break;
     }
@@ -223,7 +206,7 @@ start:
         maxbps = 0;
 
         stretch = 1;
-        pitch = gri->viewport_pitch;
+        pitch = gri->canvas_pitch;
         stretch_height = gri->display_height;
         header = (224 - stretch_height) / 2;
         footer = header + stretch_height;

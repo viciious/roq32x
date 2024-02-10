@@ -14,7 +14,7 @@
 #define RoQ_ID_SLD		0x02
 #define RoQ_ID_CCC		0x03
 
-#define RoQ_MAX_VIEWPORT_SIZE 288*224
+#define RoQ_MAX_CANVAS_SIZE 288*224
 
 #define RoQ_SAMPLE_RATE    22050
 
@@ -37,7 +37,7 @@ typedef struct {
 } roq_cell;
 
 typedef struct {
-	unsigned char idx[4];
+	char idx[4];
 } roq_qcell;
 
 typedef struct {
@@ -62,20 +62,22 @@ typedef struct {
 } roq_parse_ctx;
 
 typedef struct roq_info_s {
+	short canvascopy[RoQ_MAX_CANVAS_SIZE] __attribute__((aligned(16)));
+	roq_cell cells_u[256];
+	roq_qcell qcells_u[256];
+	roq_cell *cells;
+	roq_qcell *qcells;
 	roq_file *fp;
 	int buf_size;
 	short *snd_sqr_arr;
 	long roq_start;
-	short viewportcopy[RoQ_MAX_VIEWPORT_SIZE] __attribute__((aligned(16)));
-	roq_cell cells[256];
-	roq_qcell qcells[256];
-	short snd_sqr_arr_[256];
+	short snd_sqr_arr_u[256];
 	unsigned width, height, frame_num;
 	unsigned display_height;
 	unsigned int frame_bytes;
 	roq_bufferdata_t buffer;
-	short *framebuffer, *viewport;
-	int viewport_pitch;
+	short *framebuffer, *canvas;
+	int canvas_pitch;
 	unsigned framerate;
 } roq_info;
 

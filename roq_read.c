@@ -115,7 +115,6 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int refresh_rate)
 		return 1;
 	}
 
-	ri->snd_sqr_arr = ri->snd_sqr_arr_ + 128;
 	for (i = 0; i < 128; i++)
 	{
 		ri->snd_sqr_arr[(int8_t)i] = i * i;
@@ -164,21 +163,21 @@ static int roq_parse_file(roq_file* fp, roq_info* ri, int refresh_rate)
 		return 1;
 	}
 
-	ri->viewport = ri->framebuffer;
+	ri->canvas = ri->framebuffer;
 
 	ri->display_height = ri->height;
-	if (ri->viewport_pitch * ri->display_height < RoQ_MAX_VIEWPORT_SIZE)
+	if (ri->canvas_pitch * ri->display_height < RoQ_MAX_CANVAS_SIZE)
 	{
 		if (ri->width < 320)
-			ri->viewport += (320 - ri->width) / 2;
-		ri->viewport = (void *)((uintptr_t)ri->viewport & ~15);
-		ri->viewport_pitch = (160 + ri->width / 2 + 15) & ~15;
+			ri->canvas += (320 - ri->width) / 2;
+		ri->canvas = (void *)((uintptr_t)ri->canvas & ~15);
+		ri->canvas_pitch = (160 + ri->width / 2 + 15) & ~15;
 	}
 	else
 	{
-		ri->viewport_pitch = ri->width;
+		ri->canvas_pitch = ri->width;
 	}
-	while (ri->viewport_pitch * ri->display_height > RoQ_MAX_VIEWPORT_SIZE || ri->display_height > 224)
+	while (ri->canvas_pitch * ri->display_height > RoQ_MAX_CANVAS_SIZE || ri->display_height > 224)
 		ri->display_height -= 16;
 
 	fp->rover = start_rover;
@@ -197,8 +196,8 @@ static inline void apply_motion_4x4(roq_parse_ctx* ctx, unsigned x, unsigned y, 
 	mx = x + 8 - (mv / 16) - mean_x;
 	my = y + 8 - (mv & 0xf) - mean_y;
 
-	dst = ri->viewport + y * ri->viewport_pitch + x;
-	src = ri->viewportcopy + my * ri->viewport_pitch + mx;
+	dst = ri->canvas + y * ri->canvas_pitch + x;
+	src = ri->canvascopy + my * ri->canvas_pitch + mx;
 
 	for (i = 0; i < 4; i++)
 	{
@@ -206,8 +205,8 @@ static inline void apply_motion_4x4(roq_parse_ctx* ctx, unsigned x, unsigned y, 
 		dst[1] = src[1];
 		dst[2] = src[2];
 		dst[3] = src[3];
-		src += ri->viewport_pitch;
-		dst += ri->viewport_pitch;
+		src += ri->canvas_pitch;
+		dst += ri->canvas_pitch;
 	}
 }
 
@@ -221,8 +220,8 @@ static inline void apply_motion_8x8(roq_parse_ctx* ctx, unsigned x, unsigned y, 
 	mx = x + 8 - (mv / 16) - mean_x;
 	my = y + 8 - (mv & 0xf) - mean_y;
 	
-	dst = ri->viewport + y * ri->viewport_pitch + x;
-	src = ri->viewportcopy + my * ri->viewport_pitch + mx;
+	dst = ri->canvas + y * ri->canvas_pitch + x;
+	src = ri->canvascopy + my * ri->canvas_pitch + mx;
 
 	for (i = 0; i < 8; i++)
 	{
@@ -234,8 +233,8 @@ static inline void apply_motion_8x8(roq_parse_ctx* ctx, unsigned x, unsigned y, 
 		dst[5] = src[5];
 		dst[6] = src[6];
 		dst[7] = src[7];
-		src += ri->viewport_pitch;
-		dst += ri->viewport_pitch;
+		src += ri->canvas_pitch;
+		dst += ri->canvas_pitch;
 	}
 }
 
@@ -254,6 +253,10 @@ roq_info* roq_open(roq_file* fp, roq_bufferdata_t buf, int refresh_rate, short *
 	ri->fp = fp;
 	ri->buffer = buf ? buf : roq_bufferdata_dummy;
 	ri->framebuffer = framebuffer;
+
+	ri->cells = ri->cells_u + 128;
+	ri->qcells = ri->qcells_u + 128;
+	ri->snd_sqr_arr = ri->snd_sqr_arr_u + 128;
 
 	if (roq_parse_file(fp, ri, refresh_rate)) return NULL;	
 	roq_on_first_frame(ri);
@@ -372,9 +375,9 @@ static int roq_apply_sld(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 {
 	int i, j;
 	roq_info* ri = ctx->ri;
-	unsigned pitch = ri->viewport_pitch;
-	roq_qcell *qcell = ri->qcells + (uint8_t)buf[0];
-	short *dst = ri->viewport + y * pitch + x;
+	unsigned pitch = ri->canvas_pitch;
+	roq_qcell *qcell = ri->qcells + buf[0];
+	short *dst = ri->canvas + y * pitch + x;
 	short *dst2 = dst + pitch;
 
 	pitch *= 2;
@@ -454,21 +457,22 @@ static int roq_apply_fcc2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 
 static int roq_apply_sld2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 {
-	roq_apply_cc2(ctx, x, y, (char *)ctx->ri->qcells[(uint8_t)buf[0]].idx);
+	roq_qcell *qcell = ctx->ri->qcells + buf[0];
+	roq_apply_cc2(ctx, x, y, qcell->idx);
 	return 1;
 }
 
 static int roq_apply_cc2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 {
 	roq_info* ri = ctx->ri;
-	unsigned pitch = ri->viewport_pitch;
-	int *dst = (int *)(ri->viewport + y * pitch + x);
+	unsigned pitch = ri->canvas_pitch;
+	int *dst = (int *)(ri->canvas + y * pitch + x);
 	roq_cell *cell0, *cell1, *cell2, *cell3;
 
 	pitch /= 2;
 
-	cell0 = ri->cells + (uint8_t)buf[0];
-	cell1 = ri->cells + (uint8_t)buf[1];
+	cell0 = ri->cells + buf[0];
+	cell1 = ri->cells + buf[1];
 
 	dst[0] = cell0->rgb555x2[0];
 	dst[1] = cell1->rgb555x2[0];
@@ -478,8 +482,8 @@ static int roq_apply_cc2(roq_parse_ctx* ctx, unsigned x, unsigned y, char* buf)
 	dst[1] = cell1->rgb555x2[1];
 	dst += pitch;
 
-	cell2 = ri->cells + (uint8_t)buf[2];
-	cell3 = ri->cells + (uint8_t)buf[3];
+	cell2 = ri->cells + buf[2];
+	cell3 = ri->cells + buf[3];
 
 	dst[0] = cell2->rgb555x2[0];
 	dst[1] = cell3->rgb555x2[0];
@@ -548,9 +552,9 @@ xfer:
 				dmato = othery;
 
 				// start DMA
-				SH2_DMA_SAR1 = (uint32_t)(ri->viewport + ri->viewport_pitch*dmafrom/2*sizeof(short));
-				SH2_DMA_DAR1 = (uint32_t)(ri->viewportcopy + ri->viewport_pitch*dmafrom/2*sizeof(short));
-				SH2_DMA_TCR1 = ((((dmato - dmafrom)*ri->viewport_pitch*sizeof(short)) >> 4) << 2); // xfer count (4 * # of 16 byte units)
+				SH2_DMA_SAR1 = (uint32_t)(ri->canvas + ri->canvas_pitch*dmafrom/2*sizeof(short));
+				SH2_DMA_DAR1 = (uint32_t)(ri->canvascopy + ri->canvas_pitch*dmafrom/2*sizeof(short));
+				SH2_DMA_TCR1 = ((((dmato - dmafrom)*ri->canvas_pitch*sizeof(short)) >> 4) << 2); // xfer count (4 * # of 16 byte units)
 				SH2_DMA_CHCR1 = 0b0101111011100001; // dest incr, src incr, size 16B, auto req, cycle-steal, dual addr, intr disabled, clear TE, dma enabled
 			}
 
@@ -609,26 +613,36 @@ loop_start:
 		switch (chunk_id)
 		{
 		case RoQ_QUAD_CODEBOOK:
-		{
-			roq_yuvcell *yuvcell;
-
 			if ((nv1 = chunk_arg1) == 0) nv1 = 256;
 			if ((nv2 = chunk_arg0) == 0 && nv1 * 6 < chunk_size) nv2 = 256;
 
-			yuvcell = (void *)fp->rover;
-			fp->rover += nv1*6;
 			for (i = 0; i < nv1; i++)
 			{
-				ri->cells[i].rgb555[0] = yuv2rgb555(yuvcell->y0123[0], yuvcell->uvb[0], yuvcell->uvb[1]);
-				ri->cells[i].rgb555[1] = yuv2rgb555(yuvcell->y0123[1], yuvcell->uvb[0], yuvcell->uvb[1]);
-				ri->cells[i].rgb555[2] = yuv2rgb555(yuvcell->y0123[2], yuvcell->uvb[0], yuvcell->uvb[1]);
-				ri->cells[i].rgb555[3] = yuv2rgb555(yuvcell->y0123[3], yuvcell->uvb[0], yuvcell->uvb[1]);
-				yuvcell++;
+				uint8_t y[4], u, v;
+				roq_cell *cell = ri->cells + (int8_t)i;
+
+				y[0] = roq_fgetsc(fp);
+				y[1] = roq_fgetsc(fp);
+				y[2] = roq_fgetsc(fp);
+				y[3] = roq_fgetsc(fp);
+				u = roq_fgetsc(fp);
+				v = roq_fgetsc(fp);
+
+				cell->rgb555[0] = yuv2rgb555(y[0], u, v);
+				cell->rgb555[1] = yuv2rgb555(y[1], u, v);
+				cell->rgb555[2] = yuv2rgb555(y[2], u, v);
+				cell->rgb555[3] = yuv2rgb555(y[3], u, v);
 			}
 
-			memcpy(ri->qcells, fp->rover, nv2*4);
-			fp->rover += nv2*4;
-		}
+			if (nv2 > 127)
+			{
+				memcpy(ri->qcells, fp->rover, 128*4);
+				memcpy(ri->qcells - 128, fp->rover + 128 * 4, (nv2 - 128)*4);
+			}
+			else
+			{
+				memcpy(ri->qcells, fp->rover, nv2*4);
+			}
 			break;
 
 		case RoQ_SOUND_MONO:
